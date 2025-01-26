@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Get Sequence from UniProt ID</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #74ebd5, #acb6e5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        p {
+            margin-bottom: 10px;
+            color: #666;
+            text-align: left;
+        }
+        .footer {
+            margin-top: 30px;
+            color: #666;
+            font-size: 0.8rem;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            font-size: 1rem;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            overflow-wrap: break-word;
+        }
+        .copy-button {
+            margin-top: 10px;
+            padding: 5px 15px;
+            cursor: pointer;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            transition: background-color 0.3s ease;
+        }
+        .copy-button:hover {
+            background-color: #218838;
+        }
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            opacity: 0;
+            transition: opacity 0.5s ease, transform 0.5s ease;
+            transform: translateY(-20px);
+        }
+        .notification.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Get Sequence from UniProt ID</h1>
+        <p>In AlphaFold 3, the sequence should be formatted on 1 lines. This tool will fetch the sequence for the uniprot ids given and print them formated in 1 lines. You can click on <b>copy</b> button to copy them directly.</p>
+        <p>Please give the sequence IDs, separated by commas <i>(e.g., <code>P10023,Q32034</code>)</i>:</p>
+        <input type="text" id="sequenceIds" placeholder="Enter sequence IDs here">
+        <button onclick="fetchSequences()">Fetch Sequences</button>
+
+        <div id="results"></div>
+        <div id="notification" class="notification">Sequence copied to clipboard!</div>
+        <div class="footer"><i>Made with AI</i></div>
+    </div>
+
+    <script>
+        async function fetchSequences() {
+            const ids = document.getElementById('sequenceIds').value.trim();
+            if (!ids) {
+                alert('Please enter sequence IDs.');
+                return;
+            }
+    
+            const sequenceIds = ids.split(',');
+            const resultsContainer = document.getElementById('results');
+            resultsContainer.innerHTML = '';
+    
+            for (const id of sequenceIds) {
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'result';
+                resultDiv.innerText = `Fetching sequence for ${id}...`;
+                resultsContainer.appendChild(resultDiv);
+    
+                try {
+                    const response = await fetch(`https://rest.uniprot.org/uniprotkb/${id}.fasta`);
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch sequence for ${id}`);
+                    }
+    
+                    const fasta = await response.text();
+                    const sequence = fasta.split('\n').slice(1).join('');
+    
+                    resultDiv.innerHTML = `
+                        <strong>Sequence for ${id}:</strong>
+                        <div>${sequence}</div>
+                        <button class="copy-button" onclick="copyToClipboard('${sequence}', '${id}')">Copy</button>
+                    `;
+                } catch (error) {
+                    resultDiv.innerHTML = `<strong>Error fetching sequence for ${id}:</strong> ${error.message}`;
+                }
+            }
+        }
+    
+        function copyToClipboard(text, id) {
+            navigator.clipboard.writeText(text).then(() => {
+                showNotification(`Sequence for ${id} copied to clipboard!`);
+            }).catch(() => {
+                alert('Failed to copy to clipboard.');
+            });
+        }
+    
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.innerText = message;
+            notification.classList.add('show');
+    
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 2000);
+        }
+    </script>    
+</body>
+</html>
