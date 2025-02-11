@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Get Sequence from UniProt ID</title>
+    <title>Sequence Tools</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -11,22 +11,34 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
+            padding: 20px;
+        }
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-width: 1200px;
+            width: 100%;
+        }
+        .top-containers {
+            display: flex;
+            gap: 20px;
         }
         .container {
             background-color: #ffffff;
             border-radius: 15px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
             padding: 30px;
-            max-width: 500px;
-            width: 100%;
-            text-align: center;
+            flex: 1;
+            min-width: 0;
         }
         h1 {
             font-size: 1.5rem;
             margin-bottom: 20px;
             color: #333;
+            text-align: center;
         }
         p {
             margin-bottom: 10px;
@@ -37,14 +49,20 @@
             margin-top: 30px;
             color: #666;
             font-size: 0.8rem;
+            text-align: center;
         }
-        input {
+        input, textarea {
             width: 100%;
             padding: 10px;
             margin-bottom: 20px;
             border: 1px solid #ccc;
             border-radius: 10px;
             font-size: 1rem;
+            box-sizing: border-box;
+        }
+        textarea {
+            min-height: 150px;
+            resize: vertical;
         }
         button {
             padding: 10px 20px;
@@ -55,6 +73,8 @@
             font-size: 1rem;
             cursor: pointer;
             transition: background-color 0.3s ease;
+            display: block;
+            margin: 0 auto;
         }
         button:hover {
             background-color: #0056b3;
@@ -66,6 +86,7 @@
             padding: 15px;
             margin-top: 15px;
             overflow-wrap: break-word;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         }
         .copy-button {
             margin-top: 10px;
@@ -98,22 +119,93 @@
             opacity: 1;
             transform: translateY(0);
         }
+        @media (max-width: 768px) {
+            .top-containers {
+                flex-direction: column;
+            }
+        }
+        .colabfold-container {
+            background-color: #ffffff;
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            padding: 30px;
+            margin-top: 20px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .sequence-scroll {
+            overflow-x: auto;
+            white-space: nowrap;
+            background-color: #f9f9f9;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .sequence-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-right: 15px;
+        }
+
+        .complex-result {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            overflow-x: auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .complex-sequence {
+            white-space: nowrap;
+            font-family: monospace;
+            margin: 10px 0;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Get Sequence from UniProt ID</h1>
-        <p>In AlphaFold 3, the sequence should be formatted on 1 line. This tool will fetch the sequence for the uniprot ids given and print them formated in 1 line. You can click on <b>copy</b> button to copy them directly.</p>
-        <p>Please give the sequence IDs, separated by commas <i>(e.g., <code>P10023,Q32034</code>)</i>:</p>
-        <input type="text" id="sequenceIds" placeholder="Enter sequence IDs here">
-        <button onclick="fetchSequences()">Fetch Sequences</button>
+    <div class="main-container">
+        <div class="top-containers">
+            <div class="container">
+                <h1>Get Sequence from UniProt ID</h1>
+                <p>In AlphaFold 3, the sequence should be formatted on 1 line. This tool will fetch the sequence for the uniprot ids given and print them formated in 1 line. You can click on <b>copy</b> button to copy them directly.</p>
+                <p>Please give the sequence IDs, separated by commas <i>(e.g., <code>P10023,Q32034</code>)</i>:</p>
+                <input type="text" id="sequenceIds" placeholder="Enter sequence IDs here">
+                <button onclick="fetchSequences()">Fetch Sequences</button>
+                <div id="results"></div>
+            </div>
 
-        <div id="results"></div>
-        <div id="notification" class="notification">Sequence copied to clipboard!</div>
-        <div class="footer"><i>Made with AI</i></div>
+            <div class="container">
+                <h1>Paste Your Own Sequence</h1>
+                <p>Paste your FASTA sequence here to convert it to a linear format. The header line (starting with >) will be removed, and all line breaks will be eliminated.</p>
+                <textarea id="fastaInput" placeholder="Paste FASTA sequence here..."></textarea>
+                <button onclick="formatSequence()">Format Sequence</button>
+                <div id="formattedResult"></div>
+            </div>
+        </div>
+
+        <div class="colabfold-container">
+            <h1>Multimer input for ColabFold</h1>
+            <div id="colabfold-sequences"></div>
+            <div>
+                <h2>Sequence formatted for multimer prediction</h2>
+                <div id="complex-result" class="complex-result"></div>
+            </div>
+        </div>
     </div>
 
+    <div id="notification" class="notification">Sequence copied to clipboard!</div>
+
     <script>
+        let sequences = new Map(); // Store sequences with their IDs
+
         async function fetchSequences() {
             const ids = document.getElementById('sequenceIds').value.trim();
             if (!ids) {
@@ -138,7 +230,8 @@
                     }
     
                     const fasta = await response.text();
-                    const sequence = fasta.split('\n').slice(1).join('');
+                    const sequence = fasta.split('\n').slice(1).join('').toUpperCase();
+                    sequences.set(id, sequence); // Store the sequence
     
                     resultDiv.innerHTML = `
                         <strong>Sequence for ${id}:</strong>
@@ -149,11 +242,103 @@
                     resultDiv.innerHTML = `<strong>Error fetching sequence for ${id}:</strong> ${error.message}`;
                 }
             }
+            updateColabfoldSection();
+        }
+
+        function formatSequence() {
+            const fastaInput = document.getElementById('fastaInput').value.trim();
+            if (!fastaInput) {
+                alert('Please paste a FASTA sequence.');
+                return;
+            }
+        
+            const lines = fastaInput.split('\n');
+            const formattedResult = document.getElementById('formattedResult');
+            formattedResult.innerHTML = '';
+            
+            let currentHeader = '';
+            let currentSequence = [];
+        
+            // Process each line
+            for (let line of lines) {
+                line = line.trim();
+                if (line.startsWith('>')) {
+                    // If we have a previous sequence, output it
+                    if (currentHeader && currentSequence.length > 0) {
+                        outputSequence(currentHeader, currentSequence.join(''));
+                    }
+                    // Start new sequence
+                    currentHeader = line.substring(1);
+                    currentSequence = [];
+                } else if (line) {
+                    currentSequence.push(line.toUpperCase());
+                }
+            }
+        
+            // Output the last sequence
+            if (currentHeader && currentSequence.length > 0) {
+                outputSequence(currentHeader, currentSequence.join(''));
+            }
+        
+            function outputSequence(header, sequence) {
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'result';
+                resultDiv.innerHTML = `
+                    <strong>Sequence for ${header}:</strong>
+                    <div>${sequence}</div>
+                    <button class="copy-button" onclick="copyToClipboard('${sequence}', '${header}')">Copy</button>
+                `;
+                formattedResult.appendChild(resultDiv);
+                sequences.set(header, sequence); // Store the sequence
+                updateColabfoldSection();
+            }
+        }
+
+        function updateColabfoldSection() {
+            const container = document.getElementById('colabfold-sequences');
+            container.innerHTML = '';
+            
+            const sequenceDiv = document.createElement('div');
+            sequenceDiv.className = 'sequence-scroll';
+            
+            sequences.forEach((sequence, id) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'sequence-item';
+                itemDiv.innerHTML = `
+                    <span class="sequence-label">${id}</span>
+                    <input type="number" class="sequence-counter" value="1" min="1" 
+                           onchange="updateComplexPrediction()" data-id="${id}">
+                `;
+                sequenceDiv.appendChild(itemDiv);
+            });
+            
+            container.appendChild(sequenceDiv);
+            updateComplexPrediction();
+        }
+
+        function updateComplexPrediction() {
+            const complexResult = document.getElementById('complex-result');
+            let resultSequence = '';
+            
+            sequences.forEach((sequence, id) => {
+                const counter = document.querySelector(`input[data-id="${id}"]`).value;
+                for (let i = 0; i < counter; i++) {
+                    if (resultSequence) resultSequence += ':';
+                    resultSequence += sequence;
+                }
+            });
+
+            complexResult.innerHTML = `
+                <div class="complex-sequence">${resultSequence}</div>
+                <button class="copy-button" onclick="copyToClipboard('${resultSequence}', 'complex')">
+                    Copy Complex Sequence
+                </button>
+            `;
         }
     
         function copyToClipboard(text, id) {
             navigator.clipboard.writeText(text).then(() => {
-                showNotification(`Sequence for ${id} copied to clipboard!`);
+                showNotification(`${id === 'formatted' ? 'Formatted sequence' : 'Sequence for ' + id} copied to clipboard!`);
             }).catch(() => {
                 alert('Failed to copy to clipboard.');
             });
