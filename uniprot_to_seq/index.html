@@ -159,8 +159,12 @@
             padding: 15px;
             border-radius: 5px;
             margin-top: 15px;
-            overflow-x: auto;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .complex-sequence-container {
+            overflow-x: auto;
+            margin-bottom: 10px;
         }
 
         .complex-sequence {
@@ -329,7 +333,9 @@
             });
 
             complexResult.innerHTML = `
-                <div class="complex-sequence">${resultSequence}</div>
+                <div class="complex-sequence-container">
+                    <div class="complex-sequence">${resultSequence}</div>
+                </div>
                 <button class="copy-button" onclick="copyToClipboard('${resultSequence}', 'complex')">
                     Copy Complex Sequence
                 </button>
