@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlphaFold3 Analysis</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Use original Molstar assets -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/molstar@latest/build/viewer/molstar.css">
+    <script src="https://cdn.jsdelivr.net/npm/molstar@latest/build/viewer/molstar.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
+    <script src="plots.js" defer></script>
+    <script src="viewer.js" defer></script>
+    <script src="script.js" defer></script>
+</head>
+<body>
+    <div class="container">
+        <div class="upload-section">
+            <input type="file" id="zipUpload" accept=".zip" />
+            <p>Drop ZIP file here or click to select</p>
+        </div>
+        
+        <!-- Visualization section (viewer renders here) -->
+        <div class="visualisation">
+            <h2>Visualisation</h2>
+            <div id="visualisationContent" style="position: relative; width: 100%; height: 500px;">
+                <!-- Molstar viewer will be rendered here -->
+            </div>
+            <select id="modelSelector">
+                <option value="">Select a model</option>
+            </select>
+            <button id="loadAllModelsButton">Load All Models</button>
+            <!-- <button id="superposeAllModelsButton">Superpose All Models</button> -->
+        </div>
+        
+        <div class="plots-section">
+            <div class="plot-container">
+                <h2>PAE Matrices</h2>
+                <div id="paeMatrices"></div>
+            </div>
+            <div class="plot-container">
+                <h2>pLDDT Scores</h2>
+                <div id="pLDDTPlot"></div>
+            </div>
+        </div>
+        
+        <footer>
+            <p><em>Coded with the help of AI through Copilot</em></p>
+        </footer>
+    </div>
+</body>
+</html>
