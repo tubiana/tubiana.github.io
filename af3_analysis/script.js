@@ -214,9 +214,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         const loadAllModelsButton = document.getElementById('loadAllModelsButton');
         loadAllModelsButton.addEventListener('click', handleLoadAllModels);
 
-        // Add event listener for superpose all models button
-        // const superposeAllModelsButton = document.getElementById('superposeAllModelsButton');
-        // superposeAllModelsButton.addEventListener('click', handleSuperposeAllModels);
+        // Add event listeners for color buttons
+        const colorByChainButton = document.getElementById('colorByChainButton');
+        colorByChainButton.addEventListener('click', () => {
+            console.log('Color by Chain button clicked');
+            window.Viewer.updateColorTheme('chain-id');
+        });
+
+        const colorByPLDDTButton = document.getElementById('colorByPLDDTButton');
+        colorByPLDDTButton.addEventListener('click', () => {
+            console.log('Color by pLDDT button clicked');
+            window.Viewer.updateColorTheme('plddt-confidence');
+        });
 
     } catch (error) {
         console.error('Initialization error:', error);

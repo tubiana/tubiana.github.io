@@ -26,8 +26,8 @@ async function initMolstarViewer(containerId) {
 
         // Load PDB from URL using fetch and builders
         try {
-            const req = await fetch('https://files.rcsb.org/download/1CRN.cif');
-            const pdbData = await req.text();
+            //const req = await fetch('https://files.rcsb.org/download/1CRN.cif');
+            //const pdbData = await req.text();
             // console.log("PDB:", pdbData);
 
             // Load the data into Molstar
@@ -40,6 +40,7 @@ async function initMolstarViewer(containerId) {
     } catch (err) {
         console.error('Error initializing Molstar viewer:', err);
     }
+
     return viewer;
 }
 
@@ -62,27 +63,47 @@ async function loadStructureFromData(dataStr, format, clearData = true) {
     }
 }
 
-// async function superposeModels(urls, format) {
-//     if (!viewer) {
-//         console.error('Viewer not initialized');
-//         return;
-//     }
+function updateColorTheme(themeName) {
+    if (!viewer) {
+        console.error('Viewer not initialized');
+        return;
+    }
 
-//     try {
-//         const data = await Promise.all(urls.map(url => viewer.builders.data.download({ url }, { state: { isGhost: true } })));
-//         const trajectories = await Promise.all(data.map(d => viewer.builders.structure.parseTrajectory(d, format)));
-
-//         await viewer.builders.structure.hierarchy.applyPreset(trajectories, 'default');
-//         console.log('Models superposed successfully');
-//     } catch (err) {
-//         console.error('Error superposing models:', err);
-//     }
-// }
+    console.log('Updating color theme to:', themeName);
+    
+    try {
+        // Get all structures
+        const structures = viewer.plugin.managers.structure.hierarchy.current.structures;
+        
+        
+        if (!structures || structures.length === 0) {
+            console.error('No structures available');
+            return;
+        }
+        
+        // Update each structure's components with the new color theme
+        for (const structure of structures) {
+            if (!structure.components || structure.components.length === 0) {
+                console.error('No components found for structure');
+                continue;
+            }
+            
+            // Update all components at once with the new color theme
+            viewer.plugin.managers.structure.component.updateRepresentationsTheme(
+                structure.components, 
+                { color: themeName }
+            );
+        }
+        console.log('Color theme updated successfully for all structures');
+    } catch (err) {
+        console.error('Error updating color theme:', err);
+    }
+}
 
 window.Viewer = {
     init: initMolstarViewer,
     loadStructureFromData: loadStructureFromData,
-    // superposeModels: superposeModels,
+    updateColorTheme: updateColorTheme,
     getInstance: () => viewer
 };
 
