@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boltz/AlphaFold3 YAML Generator</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-dna"></i> Boltz/AlphaFold3 YAML Generator</h1>
+            <p>Interactive interface for generating YAML configuration files for Boltz and AlphaFold3 predictions</p>
+        </header>
+
+        <main>
+            <div class="input-section">
+                <div class="job-config">
+                    <h2><i class="fas fa-cog"></i> Job Configuration</h2>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="jobName">Job Name:</label>
+                            <input type="text" id="jobName" placeholder="my_prediction_job" value="prediction">
+                        </div>
+                        <div class="form-group">
+                            <label for="outputFormat">Output Format:</label>
+                            <select id="outputFormat">
+                                <option value="boltz">Boltz YAML</option>
+                                <option value="alphafold3">AlphaFold3 JSON</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div id="alphafold3Config" class="alphafold3-config" style="display: none;">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="modelSeeds">Model Seeds (comma-separated):</label>
+                                <input type="text" id="modelSeeds" placeholder="1, 2, 3" value="1">
+                            </div>
+                            <div class="form-group">
+                                <label for="af3Version">AlphaFold3 Version:</label>
+                                <select id="af3Version">
+                                    <option value="1">Version 1</option>
+                                    <option value="2">Version 2</option>
+                                    <option value="3">Version 3</option>
+                                    <option value="4" selected>Version 4</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="components-section">
+                    <h2><i class="fas fa-plus-circle"></i> Components</h2>
+                    <div class="add-component">
+                        <select id="componentType">
+                            <option value="protein">Protein</option>
+                            <option value="dna">DNA</option>
+                            <option value="rna">RNA</option>
+                            <option value="sugar">Sugar</option>
+                            <option value="ligand">Ligand</option>
+                        </select>
+                        <button id="addComponent" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Add Component
+                        </button>
+                    </div>
+                    <div id="componentsList" class="components-list">
+                        <!-- Components will be added here dynamically -->
+                    </div>
+                </div>
+
+                <!-- AlphaFold3-specific MSA Configuration -->
+                <div id="af3MsaSection" class="msa-section" style="display: none;">
+                    <h2><i class="fas fa-dna"></i> MSA Configuration (AlphaFold3)</h2>
+                    <div id="msaList" class="msa-list">
+                        <!-- MSA configurations will be added here -->
+                    </div>
+                    <button id="addMsaConfig" class="btn btn-secondary">
+                        <i class="fas fa-plus"></i> Add MSA Configuration
+                    </button>
+                </div>
+
+                <!-- AlphaFold3-specific Templates -->
+                <div id="af3TemplatesSection" class="af3-templates-section" style="display: none;">
+                    <h2><i class="fas fa-cube"></i> Templates (AlphaFold3)</h2>
+                    <div id="af3TemplatesList" class="af3-templates-list">
+                        <!-- AF3 Templates will be added here -->
+                    </div>
+                    <button id="addAf3Template" class="btn btn-secondary">
+                        <i class="fas fa-plus"></i> Add Template
+                    </button>
+                </div>
+
+                <!-- AlphaFold3-specific Bonded Atom Pairs -->
+                <div id="bondedAtomPairsSection" class="bonded-atoms-section" style="display: none;">
+                    <h2><i class="fas fa-link"></i> Bonded Atom Pairs (AlphaFold3)</h2>
+                    <div id="bondedAtomPairsList" class="bonded-atoms-list">
+                        <!-- Bonded atom pairs will be added here -->
+                    </div>
+                    <button id="addBondedAtomPair" class="btn btn-secondary">
+                        <i class="fas fa-plus"></i> Add Bonded Atom Pair
+                    </button>
+                </div>
+
+                <div class="constraints-section" style="display: none;">
+                    <h2><i class="fas fa-link"></i> Constraints (Optional)</h2>
+                    <div id="constraintsList" class="constraints-list">
+                        <!-- Constraints will be added here -->
+                    </div>
+                    <button id="addConstraint" class="btn btn-secondary">
+                        <i class="fas fa-plus"></i> Add Constraint
+                    </button>
+                </div>
+
+                <div class="templates-section" style="display: none;">
+                    <h2><i class="fas fa-file-alt"></i> Templates (Optional)</h2>
+                    <div id="templatesList" class="templates-list">
+                        <!-- Templates will be added here -->
+                    </div>
+                    <button id="addTemplate" class="btn btn-secondary">
+                        <i class="fas fa-plus"></i> Add Template
+                    </button>
+                </div>
+
+                <div class="advanced-options">
+                    <details>
+                        <summary><i class="fas fa-chevron-down"></i> Advanced Options</summary>
+                        <div class="checkbox-group">
+                            <label>
+                                <input type="checkbox" id="showConstraints"> Enable Constraints
+                            </label>
+                            <label>
+                                <input type="checkbox" id="showTemplates"> Enable Templates
+                            </label>
+                            <label>
+                                <input type="checkbox" id="enableAffinity"> Enable Affinity Calculation
+                            </label>
+                        </div>
+                        <div id="affinityOptions" class="affinity-options" style="display: none;">
+                            <div class="form-group">
+                                <label for="affinityLigand">Select Ligand for Affinity:</label>
+                                <select id="affinityLigand">
+                                    <option value="">Select a ligand...</option>
+                                </select>
+                            </div>
+                        </div>
+                    </details>
+                </div>
+            </div>
+
+            <div class="output-section">
+                <div class="output-header">
+                    <h2><i class="fas fa-code"></i> Generated <span id="outputFormatLabel">YAML</span></h2>
+                    <button id="downloadOutput" class="btn btn-success">
+                        <i class="fas fa-download"></i> Download <span id="downloadFormatLabel">YAML</span>
+                    </button>
+                </div>
+                <textarea id="outputContent" readonly placeholder="Configuration will appear here..."></textarea>
+            </div>
+        </main>
+    </div>
+
+    <!-- PTM Modal -->
+    <div id="ptmModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Post-Translational Modifications</h3>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p>Select modification for position <span id="ptmPosition"></span>:</p>
+                <div id="ptmOptions" class="ptm-options">
+                    <!-- PTM options will be populated here -->
+                </div>
+                <div class="modal-footer">
+                    <button id="applyPTM" class="btn btn-primary">Apply</button>
+                    <button id="removePTM" class="btn btn-danger">Remove PTM</button>
+                    <button id="cancelPTM" class="btn btn-secondary">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="ptm-data.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
