@@ -25,8 +25,13 @@ async function handleFileUpload(event) {
         for (const [filename, fileEntry] of Object.entries(zip.files)) {
             if (!fileEntry.dir) {  // Skip directories
                 if (filename.endsWith('.cif')) {
-                    console.log('Found CIF file:', filename);
-                    modelFiles.push([filename, fileEntry]);
+                    // Exclude AlphaFold template hit CIFs
+                    if (filename.toLowerCase().includes('template_hit')) {
+                        console.log('Skipping template_hit CIF file:', filename);
+                    } else {
+                        console.log('Found CIF file:', filename);
+                        modelFiles.push([filename, fileEntry]);
+                    }
                 } else if (filename.includes('_full_data_')) {
                     console.log('Found data file:', filename);
                     dataFiles.push([filename, fileEntry]);
