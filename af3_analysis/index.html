@@ -10,8 +10,10 @@
     <script src="https://cdn.jsdelivr.net/npm/molstar@latest/build/viewer/molstar.js"></script>
     <script src="https://cdn.plot.ly/plotly-2.24.1.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
+    <script defer src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
     <script src="plots.js" defer></script>
     <script src="viewer.js" defer></script>
+    <script src="ipsae-runner.js" defer></script>
     <script src="script.js" defer></script>
 </head>
 <body>
@@ -46,6 +48,66 @@
                 <div id="pLDDTPlot"></div>
             </div>
         </div>
+
+        <section class="ipsae-section" aria-labelledby="ipsae-heading">
+            <h2 id="ipsae-heading">ipSAE Metrics</h2>
+            <p class="ipsae-description">
+                Select a model above, configure the PAE / distance thresholds, and run the original
+                <code>ipsae.py</code> workflow directly in your browser. Results appear below without uploading any files.
+            </p>
+            <div class="ipsae-controls">
+                <label>
+                    PAE cutoff (&Aring;)
+                    <input type="number" id="ipsaePaeCutoff" min="1" max="50" step="1" value="10">
+                </label>
+                <label>
+                    Distance cutoff (&Aring;)
+                    <input type="number" id="ipsaeDistCutoff" min="1" max="30" step="1" value="10">
+                </label>
+                <button type="button" id="runIpsaeButton" disabled>Compute ipSAE for selected model</button>
+            </div>
+            <p class="ipsae-note">Tip: choose the model in the dropdown above before launching the calculation.</p>
+            <p class="ipsae-citation">
+                Please cite the <a href="https://www.biorxiv.org/content/10.1101/2025.02.10.637595v1" target="_blank" rel="noreferrer">ipSAE bioRxiv preprint</a>
+                and the <a href="https://github.com/DunbrackLab/IPSAE" target="_blank" rel="noreferrer">DunbrackLab/IPSAE GitHub repository</a> when using these scores.
+            </p>
+            <div id="ipsaeStatus" class="ipsae-status" role="status" aria-live="polite"></div>
+            <div id="ipsaeResults" class="ipsae-results hidden">
+                <div class="ipsae-summary-header">
+                    <div>
+                        <h3>Chain-Pair Scores</h3>
+                        <p>Auto-calculated whenever you load or switch models. Use the filter to jump to specific pairs.</p>
+                    </div>
+                    <label class="ipsae-filter-label" for="ipsaeSummaryFilter">
+                        Filter pairs
+                        <input type="search" id="ipsaeSummaryFilter" placeholder="e.g. A B max">
+                    </label>
+                </div>
+                <div class="table-wrapper">
+                    <table id="ipsaeSummaryTable" class="ipsae-table">
+                        <thead></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="ipsae-detail">
+                    <div class="ipsae-tabs" role="tablist">
+                        <button type="button" class="ipsae-tab ipsae-tab--active" data-tab="metrics" role="tab" aria-selected="true" aria-controls="ipsaeTab-metrics">Pair metrics</button>
+                        <button type="button" class="ipsae-tab" data-tab="residues" role="tab" aria-selected="false" aria-controls="ipsaeTab-residues">Residue breakdown</button>
+                    </div>
+                    <div id="ipsaeTab-metrics" class="ipsae-tab-panel ipsae-tab-panel--active" role="tabpanel">
+                        <dl id="ipsaeMetrics" class="ipsae-metrics"></dl>
+                    </div>
+                    <div id="ipsaeTab-residues" class="ipsae-tab-panel" role="tabpanel" hidden>
+                        <div class="table-wrapper table-wrapper--inner">
+                            <table id="ipsaeResidueTable" class="ipsae-table ipsae-table--compact">
+                                <thead></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
         
         <footer>
             <p><em>Coded with the help of AI through Copilot</em></p>
