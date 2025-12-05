@@ -13,7 +13,8 @@ const PTM_DATA = {
     { code: 'OCS', name: 'Cysteinesulfonic acid' },         // sulfonic acid
     { code: 'MCS', name: 'Malonyl cysteine' },              // requested
     { code: 'P1L', name: 'S-Palmitoyl-L-cysteine' },        // requested
-    { code: 'SNC', name: 'S-Nitroso-cysteine' }             // requested
+    { code: 'SNC', name: 'S-Nitroso-cysteine' },
+    { code: '5U0', name: 's-farnesyl-l-cysteine' }
   ],
   'D': [
     { code: 'ASP', name: 'Aspartic acid (unmodified)' },
