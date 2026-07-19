@@ -172,6 +172,44 @@
             font-family: monospace;
             margin: 10px 0;
         }
+
+        .fasta-controls {
+            background-color: #f0f4ff;
+            border: 1px solid #dbe3f5;
+            border-radius: 10px;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+        }
+
+        .fasta-controls-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .fasta-controls .toggle-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #333;
+            white-space: nowrap;
+        }
+
+        .fasta-controls .toggle-label input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+
+        #wrapWidth {
+            width: 80px;
+            margin: 0;
+            padding: 6px 8px;
+        }
+
+        .fasta-controls .copy-button {
+            margin: 0 0 0 auto;
+        }
     </style>
 </head>
 <body>
@@ -180,9 +218,19 @@
             <div class="container">
                 <h1>Get Sequence from UniProt ID</h1>
                 <p>In AlphaFold 3, the sequence should be formatted on 1 line. This tool will fetch the sequence for the uniprot ids given and print them formated in 1 line. You can click on <b>copy</b> button to copy them directly.</p>
-                <p>Please give the sequence IDs, separated by commas <i>(e.g., <code>P10023,Q32034</code>)</i>:</p>
+                <p>Please give the sequence IDs, separated by commas <i>(e.g., <code>P10023,P05067</code>)</i>:</p>
                 <input type="text" id="sequenceIds" placeholder="Enter sequence IDs here">
                 <button onclick="fetchSequences()">Fetch Sequences</button>
+                <div id="fastaControls" class="fasta-controls" style="display:none;">
+                    <div class="fasta-controls-row">
+                        <label class="toggle-label">
+                            <input type="checkbox" id="wrapToggle" onchange="toggleWrapWidth()">
+                            Wrap at fixed width
+                        </label>
+                        <input type="number" id="wrapWidth" value="60" min="1" style="display:none;" onchange="toggleWrapWidth()">
+                        <button class="copy-button" onclick="copyAllFasta()">Copy All Sequences (FASTA)</button>
+                    </div>
+                </div>
                 <div id="results"></div>
             </div>
 
@@ -209,6 +257,7 @@
 
     <script>
         let sequences = new Map(); // Store sequences with their IDs
+        let fetchedSequences = new Map(); // Store only sequences fetched via UniProt IDs (ordered), for FASTA export
 
         async function fetchSequences() {
             const ids = document.getElementById('sequenceIds').value.trim();
@@ -217,9 +266,10 @@
                 return;
             }
     
-            const sequenceIds = ids.split(',');
+            const sequenceIds = ids.split(',').map(id => id.trim()).filter(id => id);
             const resultsContainer = document.getElementById('results');
             resultsContainer.innerHTML = '';
+            fetchedSequences.clear();
     
             for (const id of sequenceIds) {
                 const resultDiv = document.createElement('div');
@@ -236,6 +286,7 @@
                     const fasta = await response.text();
                     const sequence = fasta.split('\n').slice(1).join('').toUpperCase();
                     sequences.set(id, sequence); // Store the sequence
+                    fetchedSequences.set(id, sequence);
     
                     resultDiv.innerHTML = `
                         <strong>Sequence for ${id}:</strong>
@@ -247,6 +298,53 @@
                 }
             }
             updateColabfoldSection();
+            updateFastaControlsVisibility();
+        }
+
+        function updateFastaControlsVisibility() {
+            const controls = document.getElementById('fastaControls');
+            controls.style.display = fetchedSequences.size > 0 ? 'block' : 'none';
+        }
+
+        function toggleWrapWidth() {
+            const wrapToggle = document.getElementById('wrapToggle');
+            const wrapWidth = document.getElementById('wrapWidth');
+            wrapWidth.style.display = wrapToggle.checked ? 'inline-block' : 'none';
+        }
+
+        function wrapSequence(sequence, width) {
+            if (!width || width <= 0) return sequence;
+            const lines = [];
+            for (let i = 0; i < sequence.length; i += width) {
+                lines.push(sequence.substring(i, i + width));
+            }
+            return lines.join('\n');
+        }
+
+        function buildFastaText() {
+            const wrapToggle = document.getElementById('wrapToggle');
+            const wrapWidth = parseInt(document.getElementById('wrapWidth').value, 10);
+            const useWrap = wrapToggle.checked && wrapWidth > 0;
+
+            const blocks = [];
+            fetchedSequences.forEach((sequence, id) => {
+                const seqText = useWrap ? wrapSequence(sequence, wrapWidth) : sequence;
+                blocks.push(`>${id}\n${seqText}`);
+            });
+            return blocks.join('\n');
+        }
+
+        function copyAllFasta() {
+            if (fetchedSequences.size === 0) {
+                alert('No sequences to copy yet.');
+                return;
+            }
+            const fastaText = buildFastaText();
+            navigator.clipboard.writeText(fastaText).then(() => {
+                showNotification('All sequences copied in FASTA format!');
+            }).catch(() => {
+                alert('Failed to copy to clipboard.');
+            });
         }
 
         function formatSequence() {
