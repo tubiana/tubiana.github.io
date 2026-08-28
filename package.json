@@ -12,7 +12,8 @@
     "prepare:data": "python3 scripts/prepare_data.py",
     "deploy:gh-pages": "npm run build && gh-pages -d dist",
     "dev:fast": "vite --port 5173",
-    "smoke": "node scripts/smoke_test.mjs"
+    "smoke": "node scripts/smoke_test.mjs",
+    "probe:molstar-ui": "node scripts/probe_molstar_ui.mjs"
   },
   "dependencies": {
     "molstar": "^5.11.0",

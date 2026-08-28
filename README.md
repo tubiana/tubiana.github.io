@@ -134,6 +134,22 @@ plus the zoom window in the store) via `history.replaceState`, so ⧉ *link* cop
 shareable permalink and any of those URLs can be pasted cold. `?dataBaseUrl=` is honoured
 on load and never overwritten.
 
+## ⚙ molstar (full Mol* UI)
+
+Mol* 5.11 lets you *write* `plugin.layout.setProps({ showControls: true })` and
+the state does change, but the mounted React tree keeps rendering only the
+`main` region — `.msp-layout-left` never appears (verified headless; Mol*'s own
+expand button does nothing either). The panels are therefore configured **at
+mount time**: ⚙ molstar tears down the plugin and rebuilds it with
+`layout.initial.showControls / showLeftPanel / showSequenceView / showLog` + the
+default `components` (a spec that sets `components: { remoteState: 'none' }`
+outright wipes Mol*'s panel components — spread the defaults). The model reloads,
+which is also why the toggle looks like a blink.
+
+`npm run probe:molstar-ui` re-runs the headless check (`?molui=1` mounts the Mol*
+UI even without WebGL — the panels are plain DOM) and prints the rendered regions
+per setting.
+
 ## Debugging the 3D
 
 `__orf1` is exposed in the console: `getState()` (whole store) and `mol.*` —

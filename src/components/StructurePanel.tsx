@@ -53,7 +53,7 @@ export function StructurePanel() {
     if (!host) return;
     (async () => {
       try {
-        const ctx = await createScene(host);
+        const ctx = await createScene(host, { advanced });
         if (disposed) {
           ctx.dispose();
           return;
@@ -77,7 +77,7 @@ export function StructurePanel() {
       pluginRef.current = null;
       setReady(false);
     };
-  }, []);
+  }, [advanced]);
 
   // ------------------------------------------------------------- (re)load
   const modelId = model?.id ?? null;

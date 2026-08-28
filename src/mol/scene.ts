@@ -260,6 +260,9 @@ export function probeStructure(plugin: PluginUIContext) {
 export function setThemeData(plddt: Uint8Array | null, domains: DomainRange[]) {
   activePlddt = plddt ?? null;
   activeDomains = domains ?? [];
+  // Each CSV domain carries its own colour, so the themes do not depend on the
+  // manifest palette being pushed separately (it never was — domains rendered grey).
+  activeDomainColors = activeDomains.map((d) => hexToInt(d.color) ?? fallbackDomainColor(d.name));
 }
 
 export function clearThemeCaches(_modelId?: string) {
@@ -314,6 +317,23 @@ function plddtOf(location: any): number {
   const r = resnumOf(location);
   if (activePlddt && r >= 1 && r <= activePlddt.length) return activePlddt[r - 1];
   return -1;
+}
+
+/** Stable per-name colour, only used if a domain row has no usable colour. */
+function fallbackDomainColor(name: string): number {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffffff;
+  const hue = h % 360;
+  // cheap HSV(·, .62, .82) -> int so fallbacks stay distinguishable
+  const f = (n: number) => {
+    const k = (n + hue / 30) % 12;
+    const a = 0.82 * 0.62;
+    const c = 0.82 * Math.max(0, Math.min(1, Math.max(k - 3, Math.min(9 - k, 1))));
+    const m = 0.82 - c;
+    void a;
+    return Math.round(((c + m) * 255) & 255);
+  };
+  return (f(0) << 16) | (f(8) << 8) | f(4);
 }
 
 function domainColorAt(resnum: number): number {
@@ -397,6 +417,7 @@ export const DomainTheme = makeTheme(
   'ORF1 domains',
   'Domains from the annotation CSV (MetY, FABD-like, HVR, domX, Hel, RdRp). Grey = unannotated.',
   (loc) => domainColorAt(resnumOf(loc)),
+  (loc) => ({ resnum: resnumOf(loc), value: domainColorAt(resnumOf(loc)) }),
 );
 
 // ------------------------------------------------------------------------- plugin
@@ -422,26 +443,57 @@ export function hasWebGL2(): boolean {
   }
 }
 
-export async function createScene(container: HTMLElement): Promise<Scene> {
-  if (!hasWebGL2()) {
+/** `?molui=1` mounts the Mol* UI even without WebGL — the panels are plain DOM,
+ * so layout problems (⚙ molstar not revealing the left panel) stay debuggable on
+ * machines/CI without a GL context. Rendering obviously still fails. */
+export function molUiForced(): boolean {
+  try {
+    return new URLSearchParams(window.location.search).has('molui');
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Build the plugin. `advanced` must be decided **at mount time**: Mol* 5.11 lets
+ * you write `plugin.layout.setProps({ showControls: true, … })` and the state
+ * object does change, but the mounted React tree keeps rendering only the
+ * `main` region — `.msp-layout-left` never appears (verified headless: the class
+ * list stays `msp-layout-standard …` even with `isExpanded: true`, and Mol*'s own
+ * expand button does nothing either). So ⚙ molstar recreates the scene instead of
+ * mutating it, which is the only path that yields the real Mol* panels.
+ */
+export interface SceneOptions {
+  advanced?: boolean;
+}
+
+export async function createScene(container: HTMLElement, opts: SceneOptions = {}): Promise<Scene> {
+  if (!hasWebGL2() && !molUiForced()) {
     throw new Error(
       'WebGL2 is not available in this browser, so the 3D viewport cannot start. ' +
         'The PAE matrices, pLDDT profile and alignment still work.'
     );
   }
+  const adv = !!opts.advanced;
+  const base: any = DefaultPluginUISpec();
   const spec = {
-    ...DefaultPluginUISpec(),
+    ...base,
     layout: {
       initial: {
         isExpanded: false,
-        showControls: false,
-        showLeftPanel: false,
-        showSequenceView: false,
+        showControls: adv,
+        showLeftPanel: adv,
+        showSequenceView: adv,
+        showLog: adv,
         isRotated: false,
-        showLog: false,
+        regionState: adv
+          ? { left: 'full', top: 'collapsed', right: 'hidden', bottom: 'hidden' }
+          : { left: 'hidden', top: 'hidden', right: 'hidden', bottom: 'hidden' },
       },
     },
-    components: { remoteState: 'none' as const },
+    // MUST spread the defaults: they carry Mol*'s panel components. The previous
+    // `components: { remoteState: 'none' }` replaced the whole object.
+    components: { ...(base.components ?? {}), remoteState: 'none' as const },
     customStructureColors: undefined,
   } as any;
 
@@ -663,6 +715,8 @@ export async function showStructure(plugin: PluginUIContext, pdbText: string, o:
  * "expanded" layout wants the whole page and then renders its panels behind
  * our header/toolbar, so we only toggle `showControls` + the region states.
  */
+/** Best-effort runtime tweak (see `createScene`: it cannot reveal the panels —
+ * the UI toggle recreates the scene with the right mount-time spec). */
 export function setUiAdvanced(plugin: PluginUIContext, on: boolean) {
   try {
     plugin.layout.setProps({
