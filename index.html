@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Hepatitis E ORF1 model viewer — AlphaFold2 structures, PAE matrices & MSA</title>
+    <meta
+      name="description"
+      content="Static single-page app to browse 1178 AlphaFold2 ORF1 (hepatitis E virus nsp1) predictions: Mol* 3D viewer with pLDDT / per-domain coloring, interactive 2D predicted-aligned-error matrices linked to the 3D view, pLDDT profiles and a Clustal MSA track."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b1220'/%3E%3Cg%3E%3Crect x='5' y='5' width='7' height='7' fill='%232f6fdb'/%3E%3Crect x='13' y='13' width='7' height='7' fill='%23e8c33d'/%3E%3Crect x='21' y='21' width='6' height='6' fill='%23c04ec2'/%3E%3Crect x='21' y='5' width='6' height='7' fill='%23d8452f'/%3E%3Crect x='5' y='21' width='7' height='6' fill='%232f9e5f'/%3E%3C/g%3E%3C/svg%3E"
+    />
+    <script>
+      // Optional: hard-code the data host here (empty = same-origin ./data/).
+      // Can also be set at runtime with ?dataBaseUrl=https://… or in the UI ⚙ menu.
+      window.__ORF1_DATA_BASE_URL__ = '';
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <noscript>
+      <p style="font-family: system-ui; padding: 1rem">
+        The Hepatitis E ORF1 model viewer needs JavaScript (WebGL2 for the 3D viewer).
+      </p>
+    </noscript>
+  </body>
+</html>

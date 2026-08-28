@@ -1,0 +1,173 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-mono:
+    ui-monospace, 'SFMono-Regular', 'Menlo', 'Consolas', 'Liberation Mono', monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #090d14;
+  color: #dbe2ea;
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  overscroll-behavior: none;
+}
+
+/* ---------------------------------------------------------------- Mol* host   */
+/* Mol*'s own skin is loaded first; these rules keep it inside our layout.     */
+.mol-host {
+  position: absolute;
+  inset: 0;
+}
+.mol-host .msp-plugin {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+.mol-host:not(.advanced) .msp-root {
+  position: absolute !important;
+  inset: 0 !important;
+}
+/* hide Mol* chrome – this app provides its own controls (⚙ molstar turns it back on) */
+.mol-host:not(.advanced) .msp-left-panel-wrapper,
+.mol-host:not(.advanced) .msp-right-panel-wrapper,
+.mol-host:not(.advanced) .msp-bottom-row-wrapper,
+.mol-host:not(.advanced) .msp-top-row,
+.mol-host:not(.advanced) .msp-controls,
+.mol-host:not(.advanced) .msp-settings-panel,
+.mol-host:not(.advanced) .msp-sequence-wrapper,
+.mol-host:not(.advanced) .msp-viewport-controls,
+.mol-host:not(.advanced) .msp-selection-viewport-controls,
+.mol-host:not(.advanced) .msp-animation-viewport-controls,
+.mol-host:not(.advanced) .msp-sequence,
+.mol-host:not(.advanced) .msp-plugin > .msp-flex-row:last-child {
+  display: none !important;
+}
+
+/* Advanced mode (⚙ molstar): hand the chrome back to Mol*, but keep it INSIDE
+   the viewer box. An absolutely positioned plugin root makes Mol* render its
+   left panel / controls behind our header instead of beside the viewport, so
+   the host becomes a normal flow container and Mol*'s own flex layout applies. */
+.mol-host.advanced {
+  position: relative !important;
+  overflow: hidden;
+}
+
+.mol-host.advanced .msp-plugin,
+.mol-host.advanced .msp-root {
+  position: relative !important;
+  inset: auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 1;
+}
+
+/* ---------------------------------------------------------------- scrollbars  */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 6px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------------------------------------------------------------- widgets     */
+.btn {
+  @apply inline-flex items-center gap-1.5 rounded-md border border-slate-700/70 bg-slate-800/60 px-2.5 py-1 text-[12px] font-medium text-slate-200 transition-colors;
+}
+.btn:hover:not(:disabled) {
+  @apply border-slate-500 bg-slate-700/70;
+}
+.btn[data-active='true'] {
+  @apply border-sky-500/70 bg-sky-500/15 text-sky-200;
+}
+.btn:disabled {
+  @apply cursor-not-allowed opacity-40;
+}
+.btn-ghost {
+  @apply inline-flex items-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-[12px] text-slate-300 transition-colors;
+}
+.btn-ghost:hover {
+  @apply border-slate-700 bg-slate-800/60;
+}
+.chip {
+  @apply inline-flex items-center gap-1 rounded border border-slate-700/70 bg-slate-900/60 px-1.5 py-[1px] text-[11px] text-slate-300;
+}
+.card {
+  @apply rounded-xl border border-slate-800 bg-slate-900/70 shadow-lg shadow-black/20;
+}
+.label {
+  @apply text-[10px] font-semibold uppercase tracking-wider text-slate-400;
+}
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* keyboard hint */
+kbd {
+  @apply rounded border border-slate-600 bg-slate-800 px-1 py-[1px] font-mono text-[10px] text-slate-300;
+}
+
+/* range inputs */
+input[type='range'] {
+  height: 4px;
+  background: #1e293b;
+  border-radius: 999px;
+  appearance: none;
+  outline: none;
+}
+input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #38bdf8;
+  cursor: pointer;
+  border: 2px solid #0b1220;
+}
+input[type='range']::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border: 2px solid #0b1220;
+  border-radius: 50%;
+  background: #38bdf8;
+  cursor: pointer;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ⚙ molstar (advanced) mode: Mol* lays out its own panels; keep them scrollable
+   and out of the way of the viewport's own quick actions. */
+.mol-host.advanced .msp-left-panel-wrapper {
+  max-width: 100%;
+  overflow: auto;
+}
+.mol-host.advanced .msp-right-panel {
+  pointer-events: none;
+}

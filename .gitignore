@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.vite/
+*.log
+.DS_Store
+.turbo/
+
+# the generated payload (780 MB): rebuild with scripts/prepare_data.py,
+# or host it elsewhere and point the app at it (see README)
+public/data/
+scripts/.cache/
+
+# raw source data tree (25 GB) and smoke screenshots — never commit
+models_ORF1_files/
+smoke-artifacts/
