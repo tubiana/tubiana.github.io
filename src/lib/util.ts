@@ -34,7 +34,31 @@ export async function fetchBytes(url: string, signal?: AbortSignal): Promise<Uin
 
 export async function fetchText(url: string, signal?: AbortSignal): Promise<string> {
   const bytes = await fetchBytes(url, signal);
+  // `.gz` artifacts are served raw by most static hosts and transparently
+  // decompressed by some (Vite, CDNs with Content-Encoding). Sniff the gzip
+  // magic so the caller always gets text, whichever happened.
+  if (isGzip(bytes)) {
+    try {
+      const plain = await gunzipBytes(bytes);
+      if (plain.length) return bytesToText(plain);
+    } catch (e) {
+      console.warn(`could not gunzip ${url}`, e);
+    }
+  }
   return bytesToText(bytes);
+}
+
+export function isGzip(bytes: Uint8Array): boolean {
+  return bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b;
+}
+
+/** Gunzip in memory (returns the input unchanged when the API is missing). */
+export async function gunzipBytes(bytes: Uint8Array): Promise<Uint8Array> {
+  const DS = (globalThis as any).DecompressionStream;
+  if (!DS) return bytes;
+  const stream = new Blob([bytes as unknown as BlobPart]).stream().pipeThrough(new DS('gzip'));
+  const out = new Uint8Array(await new Response(stream).arrayBuffer());
+  return out.length ? out : bytes;
 }
 
 export function bytesToText(bytes: Uint8Array): string {

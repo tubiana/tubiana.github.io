@@ -172,12 +172,25 @@ export function paeCacheInfo() {
   return [...paeCache.values()].map((m) => ({ id: m.id, w: m.w, bytes: m.index.byteLength }));
 }
 
-export async function loadStructure(entry: ModelEntry, signal?: AbortSignal): Promise<string> {
-  const hit = structureCache.get(entry.id);
+/**
+ * PDB text for the 3D view.
+ *
+ * `which` defaults to **full**: the viewer shows the complete model (side chains
+ * included), not the backbone-only reduction — ball-and-stick / licorice would
+ * otherwise only ever show the backbone because that is all the file contains.
+ * The backbone file stays available for downloads and for `which: 'backbone'`.
+ */
+export async function loadStructure(
+  entry: ModelEntry,
+  signal?: AbortSignal,
+  which: 'full' | 'backbone' = 'full',
+): Promise<string> {
+  const key = `${entry.id}::${which}`;
+  const hit = structureCache.get(key);
   if (hit) return hit.text;
-  const url = currentDataUrl(entry.pdbPath);
-  const text = await fetchText(url, signal);
-  structureCache.set(entry.id, { text, entry });
+  const rel = which === 'full' ? entry.pdbFullPath ?? entry.pdbPath : entry.pdbPath;
+  const text = await fetchText(currentDataUrl(rel), signal);
+  structureCache.set(key, { text, entry });
   return text;
 }
 

@@ -8,9 +8,12 @@ import {
   activeScenePlugin,
   currentStructures,
   molDiagnostics,
+  probeStructure,
   registeredThemeNames,
+  resetThemeStats,
   setColorMode,
   setRepr,
+  themeStatsSnapshot,
 } from './mol/scene';
 
 const rootEl = document.getElementById('root');
@@ -36,6 +39,10 @@ if (!rootEl) throw new Error('#root not found');
     },
     themes: () => (activeScenePlugin() ? registeredThemeNames(activeScenePlugin()!) : []),
     components: () => (activeScenePlugin() ? currentStructures(activeScenePlugin()!).length : 0),
+    /** residue numbers, B-factors, repr cells + theme call counters */
+    probe: () => (activeScenePlugin() ? probeStructure(activeScenePlugin()!) : null),
+    themeStats: () => themeStatsSnapshot(),
+    resetThemeStats: () => resetThemeStats(),
     diagnostics: molDiagnostics,
   },
 };

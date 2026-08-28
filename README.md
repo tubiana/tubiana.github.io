@@ -134,6 +134,16 @@ plus the zoom window in the store) via `history.replaceState`, so ⧉ *link* cop
 shareable permalink and any of those URLs can be pasted cold. `?dataBaseUrl=` is honoured
 on load and never overwritten.
 
+## Debugging the 3D
+
+`__orf1` is exposed in the console: `getState()` (whole store) and `mol.*` —
+`probe()` (what Mol* parsed: residue numbers, B-factors, representation cells,
+theme call counters), `themes()`, `themeStats()`, `setColorMode('plddt')`,
+`setRepr('ballStick')`, `diagnostics.errors`. The 3D path cannot run without
+WebGL, so this is how colouring/style problems get diagnosed: `themeStats()`
+tells you whether Mol* consulted a theme at all (`calls`), whether the lookup
+hit (`unassigned`, `distinct`), and which residue number / pLDDT it read.
+
 ## Downloads & the advanced Mol\* view
 
 * **↓ PDB** — the full-atom model of the current entry, decompressed in the browser

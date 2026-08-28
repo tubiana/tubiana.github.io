@@ -11,7 +11,7 @@ import { renderReact18 } from 'molstar/lib/mol-plugin-ui/react18.js';
 import { DefaultPluginUISpec } from 'molstar/lib/mol-plugin-ui/spec.js';
 import type { PluginUIContext } from 'molstar/lib/mol-plugin-ui/context.js';
 import { PluginCommands } from 'molstar/lib/mol-plugin/commands.js';
-import { Structure, StructureElement, Unit } from 'molstar/lib/mol-model/structure.js';
+import { Structure, StructureElement, StructureProperties, Unit } from 'molstar/lib/mol-model/structure.js';
 import { EmptyLoci, Loci } from 'molstar/lib/mol-model/loci.js';
 import { OrderedSet } from 'molstar/lib/mol-data/int.js';
 import { ColorTheme } from 'molstar/lib/mol-theme/color.js';
@@ -85,6 +85,7 @@ let domainPalette: number[] = [];
 
 export function setDomainPalette(domains: { name: string; color: string }[]) {
   domainPalette = domains.map((d) => hexToInt(d.color));
+  activeDomainColors = domainPalette;
 }
 
 function domainIndexOf(domains: DomainRange[], res: number): number {
@@ -181,32 +182,180 @@ function plddtSmoothColor(v: number): number {
   return 0x08306b;
 }
 
-function residueValueOf(location: any, kind: 'plddt' | 'domain'): number | undefined {
-  if (!location || !StructureElement.Location.is(location)) return undefined;
-  const lk = lookups.get(location.structure);
-  if (!lk) return undefined;
-  const u = lk.byUnit.get(location.unit);
-  if (!u) return undefined;
-  // Location.element is a GLOBAL atom index, not an index into unit.elements —
-  // map it to the residue index first. (Getting this wrong makes every theme
-  // read out of range and fall back to grey.)
-  const rIdx = location.unit.model.atomicHierarchy.residueAtomSegments.index[location.element];
-  if (rIdx === undefined || rIdx < 0 || rIdx >= u.resnum.length) return undefined;
-  return kind === 'plddt' ? u.resPlddt[rIdx] : u.resDomain[rIdx];
+// ---------------------------------------------------------------- theme data
+//
+// The themes read two module-level values that `showStructure` fills in for the
+// model currently on screen. They used to resolve per-representation tables
+// through a `prepare()` hook, but the object Mol* hands `prepare` is a
+// representation *instance* (it has no `.cell` here), so the tables stayed
+// empty and every theme fell back to the same grey — the model never looked
+// coloured even though the calls succeeded.
+//
+// Reading the value straight off the location is stateless and version-proof:
+// AlphaFold writes pLDDT into the PDB B-factor column, and domains map from the
+// residue number, which is the manifest index (the same trick af_analysis uses
+// with `StructureProperties.atom.B_iso_or_equiv`).
+
+let activePlddt: Uint8Array | null = null;
+let activeDomains: DomainRange[] = [];
+/** Domain colours from the manifest palette, index-aligned with the CSV domain list. */
+let activeDomainColors: number[] = [];
+
+
+/** Per-model data the colour themes read (called from `showStructure`). */
+/**
+ * One-shot inspection of the live scene: what Mol* actually parsed, whether the
+ * residue numbers / B-factors our themes rely on resolve, and whether the theme
+ * `color()` callbacks ran. `__orf1.mol.probe()`.
+ */
+export function probeStructure(plugin: PluginUIContext) {
+  const structures = currentStructures(plugin);
+  const s = structures[0];
+  const out: Record<string, any> = {
+    structures: structures.length,
+    componentCells: activeComps.map((c) => ({ kind: c.kind, repr: !!c.reprCell })),
+    themeStats: themeStatsSnapshot(),
+    themeData: { plddtLen: activePlddt?.length ?? -1, domains: activeDomains.length, palette: activeDomainColors.length },
+  };
+  if (!s) {
+    out.error = 'no structure in the scene graph';
+    return out;
+  }
+  out.atoms = s.elementCount;
+  out.unitCount = s.units.length;
+  const loc = StructureElement.Location.create(s);
+  const first = s.units[0];
+  if (first) {
+    out.atoms = first.elements.length;
+    out.modelKind = String((first as any).modelKind ?? '?');
+    const samples: any[] = [];
+    for (const i of [0, 1, Math.max(0, Math.floor(first.elements.length / 2))]) {
+      loc.unit = first;
+      loc.element = first.elements[i];
+      let resnum = -1;
+      let b = -1;
+      let atom = '';
+      try {
+        resnum = StructureProperties.residue.label_seq_id(loc);
+      } catch {
+        /* ignore */
+      }
+      try {
+        b = StructureProperties.atom.B_iso_or_equiv(loc);
+      } catch {
+        /* ignore */
+      }
+      try {
+        atom = StructureProperties.atom.label_atom_id(loc);
+      } catch {
+        /* ignore */
+      }
+      samples.push({ atomIndex: i, resnum, b, atom });
+    }
+    out.firstAtoms = samples;
+  }
+  return out;
+}
+
+export function setThemeData(plddt: Uint8Array | null, domains: DomainRange[]) {
+  activePlddt = plddt ?? null;
+  activeDomains = domains ?? [];
+}
+
+export function clearThemeCaches(_modelId?: string) {
+  activePlddt = null;
+  activeDomains = [];
+}
+
+/**
+ * Per-theme counters: whether Mol* actually calls our `color()`, and what it
+ * resolves. `__orf1.mol.themeStats()` in the console — if `calls` stays 0 the
+ * theme is never consulted; if `unassigned` is 100 % the residue/pLDDT lookup misses.
+ */
+export interface ThemeStat {
+  calls: number;
+  unassigned: number;
+  distinct: number;
+  lastResnum: number;
+  lastPlddt: number;
+}
+const themeStats: Record<string, ThemeStat> = {};
+const seenColors: Record<string, Set<number>> = {};
+function stat(name: string): ThemeStat {
+  return (themeStats[name] ??= { calls: 0, unassigned: 0, distinct: 0, lastResnum: -1, lastPlddt: -1 });
+}
+export function themeStatsSnapshot(): Record<string, ThemeStat> {
+  return JSON.parse(JSON.stringify(themeStats));
+}
+export function resetThemeStats() {
+  for (const k of Object.keys(themeStats)) delete themeStats[k];
+  for (const k of Object.keys(seenColors)) delete seenColors[k];
+}
+
+function resnumOf(location: any): number {
+  try {
+    if (!location || !StructureElement.Location.is(location)) return -1;
+    const n = StructureProperties.residue.label_seq_id(location);
+    return typeof n === 'number' && isFinite(n) ? n : -1;
+  } catch {
+    return -1;
+  }
+}
+
+/** pLDDT at a location: B-factor first (per atom, always present), manifest as backup. */
+function plddtOf(location: any): number {
+  let b = -1;
+  try {
+    b = StructureProperties.atom.B_iso_or_equiv(location);
+  } catch {
+    b = -1;
+  }
+  if (typeof b === 'number' && b > 0 && b <= 100) return b;
+  const r = resnumOf(location);
+  if (activePlddt && r >= 1 && r <= activePlddt.length) return activePlddt[r - 1];
+  return -1;
+}
+
+function domainColorAt(resnum: number): number {
+  if (resnum < 0) return COLOR_UNASSIGNED;
+  for (let i = 0; i < activeDomains.length; i++) {
+    const d = activeDomains[i];
+    if (resnum >= d.start && resnum <= d.end) return activeDomainColors[i] ?? COLOR_UNASSIGNED;
+  }
+  return COLOR_UNASSIGNED;
 }
 
 function makeTheme(
   name: string,
   label: string,
-  colorFor: (location: any) => number,
-  description: string
+  description: string,
+  pick: (location: any) => number,
+  sample?: (location: any) => { resnum: number; value: number },
 ): ColorTheme.Provider<any, any> {
-  // Mol* expects `Color` (an branded int); the registry signature moves between
-  // releases so the factory is assembled loosely and cast at the boundary.
+  // Mol* expects `Color` (a branded int); the registry signature moves between
+  // releases, so the factory is assembled loosely and cast at the boundary.
   const factory: any = (_ctx: ThemeCtx, props: any) => ({
     factory,
-    granularity: 'group',
-    color: (location: any) => Color(colorFor(location) | 0),
+    granularity: 'groupInstance',
+    color: (location: any) => {
+      const c = pick(location) | 0;
+      const st = stat(name);
+      st.calls++;
+      if (c === COLOR_UNASSIGNED) st.unassigned++;
+      const seen = (seenColors[name] ??= new Set<number>());
+      seen.add(c);
+      st.distinct = seen.size;
+      if (sample) {
+        try {
+          const info = sample(location);
+          st.lastResnum = info.resnum;
+          st.lastPlddt = info.value;
+        } catch {
+          /* ignore */
+        }
+      }
+      return Color(c);
+    },
     props,
     description,
   });
@@ -221,21 +370,34 @@ function makeTheme(
   } as ColorTheme.Provider<any, any>;
 }
 
-export const PlddtTheme = makeTheme(THEME_PLDDT, 'ORF1 pLDDT bands', (loc) => {
-  const v = residueValueOf(loc, 'plddt');
-  return v === undefined ? COLOR_UNASSIGNED : plddtBandColor(v);
-}, 'AlphaFold confidence bands (>90 dark blue, 70–90 light blue, 50–70 yellow, <50 orange).');
+export const PlddtTheme = makeTheme(
+  THEME_PLDDT,
+  'ORF1 pLDDT bands',
+  'AlphaFold confidence bands (>90 dark blue, 70–90 light blue, 50–70 yellow, <50 orange).',
+  (loc) => {
+    const v = plddtOf(loc);
+    return v < 0 ? COLOR_UNASSIGNED : plddtBandColor(v);
+  },
+  (loc) => ({ resnum: resnumOf(loc), value: plddtOf(loc) }),
+);
 
-export const PlddtSmoothTheme = makeTheme(THEME_PLDDT_SMOOTH, 'ORF1 pLDDT gradient', (loc) => {
-  const v = residueValueOf(loc, 'plddt');
-  return v === undefined ? COLOR_UNASSIGNED : plddtSmoothColor(v);
-}, 'Smooth pLDDT ramp.');
+export const PlddtSmoothTheme = makeTheme(
+  THEME_PLDDT_SMOOTH,
+  'ORF1 pLDDT gradient',
+  'Smooth pLDDT ramp.',
+  (loc) => {
+    const v = plddtOf(loc);
+    return v < 0 ? COLOR_UNASSIGNED : plddtSmoothColor(v);
+  },
+  (loc) => ({ resnum: resnumOf(loc), value: plddtOf(loc) }),
+);
 
-export const DomainTheme = makeTheme(THEME_DOMAIN, 'ORF1 domains', (loc) => {
-  const v = residueValueOf(loc, 'domain');
-  if (v === undefined || v < 0) return COLOR_UNASSIGNED;
-  return domainPalette[v] ?? COLOR_UNASSIGNED;
-}, 'Domains from the annotation CSV (MetY, FABD-like, HVR, domX, Hel, RdRp). Grey = unannotated.');
+export const DomainTheme = makeTheme(
+  THEME_DOMAIN,
+  'ORF1 domains',
+  'Domains from the annotation CSV (MetY, FABD-like, HVR, domX, Hel, RdRp). Grey = unannotated.',
+  (loc) => domainColorAt(resnumOf(loc)),
+);
 
 // ------------------------------------------------------------------------- plugin
 export interface Scene {
@@ -458,6 +620,7 @@ export async function showStructure(plugin: PluginUIContext, pdbText: string, o:
     const model = await plugin.builders.structure.createModel(trajectory);
     const structure = await plugin.builders.structure.createStructure(model);
 
+    setThemeData(o.plddt ?? null, o.domains ?? []);
     const themeId = themeIdOf(plugin, o.colorMode);
     const kinds: CompKind[] = ['polymer', 'ion', 'ligand'];
     for (const kind of kinds) {
@@ -516,8 +679,12 @@ export function setUiAdvanced(plugin: PluginUIContext, on: boolean) {
     console.warn('could not toggle the Mol* UI', e);
   }
   try {
-    // Mol* re-layouts its viewport on the window resize event
+    // Mol* re-layouts its viewport on the window resize event. It needs a nudge
+    // again once React has committed the new panel sizes, otherwise the canvas
+    // keeps its old width and the viewport is clipped by the freshly opened panel.
     window.dispatchEvent(new Event('resize'));
+    window.setTimeout(() => window.dispatchEvent(new Event('resize')), 250);
+    window.setTimeout(() => window.dispatchEvent(new Event('resize')), 900);
   } catch {
     /* noop */
   }

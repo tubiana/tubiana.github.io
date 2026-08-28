@@ -52,23 +52,11 @@ body {
   display: none !important;
 }
 
-/* Advanced mode (⚙ molstar): hand the chrome back to Mol*, but keep it INSIDE
-   the viewer box. An absolutely positioned plugin root makes Mol* render its
-   left panel / controls behind our header instead of beside the viewport, so
-   the host becomes a normal flow container and Mol*'s own flex layout applies. */
-.mol-host.advanced {
-  position: relative !important;
-  overflow: hidden;
-}
-
-.mol-host.advanced .msp-plugin,
-.mol-host.advanced .msp-root {
-  position: relative !important;
-  inset: auto !important;
-  width: 100% !important;
-  height: 100% !important;
-  z-index: 1;
-}
+/* Advanced mode (⚙ molstar): Mol*'s own panels are un-hidden by the rules above
+   (they are scoped with :not(.advanced)). The plugin root stays absolutely
+   positioned, filling the host, so Mol* splits its own area between the left
+   panel and the viewport. Repositioning the host here instead used to leave it
+   with no height at all — the structure simply vanished when the toggle was on. */
 
 /* ---------------------------------------------------------------- scrollbars  */
 * {
