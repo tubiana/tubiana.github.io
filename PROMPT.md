@@ -108,82 +108,33 @@ full-atom / figure downloads, style switching (cartoon, backbone, ball-and-stick
 **pLDDT and domain colouring** (`orf1-plddt: calls 5073 / unassigned 0 / distinct 4`; domain colours
 now come from each `DomainRange.color` in the CSV).
 
-## Open issues — in this order
+## Open issues — status after `d87b2d6` (all need a WebGL browser to confirm)
 
-### 1. Ball-and-stick / licorice: bonds are not coloured
-
-Only the atoms (spheres/sticks) take the theme colour; the **bond cylinders stay default**
-(white/grey), so the two styles look uncoloured in the middle.
-
-Cause: for `ball-and-stick` / `licorice`, Mol* colours *verticals* and *horizontals* separately, and
-our `addRepresentation(cell, { type, color })` only supplies the main colour. In addition, our custom
-themes are guarded by `StructureElement.Location.is(location)`, which is **false for bond
-locations**, so a theme asked to colour a bond falls back to grey.
-
-Do:
-- pass the theme to both slots when building the repr (`verticalColors` + `horizontalColors` in the
-  ball-and-stick / licorice params, or `colorParams` if the builder maps it), e.g. build
-  `params = { verticalColors: { name: themeId, params: {} }, horizontalColors: { name: themeId, params: {} } }`
-  via `plugin.builders.structure.representation.addRepresentation(cell, { type: 'ball-and-stick', ... })`;
-- make the themes bond-aware: handle `StructureBond.Location` (`mol-model/structure` →
-  `StructureBond.Location.is(loc)`, then `loc.b.units[0]/[1]` + `indices[0]/[1]`) and colour by the
-  bonded residues (pLDDT mean, or the domain of residue `a`);
-- verify with `themeStats()`: `calls` must roughly double (atoms + bonds) and `distinct` stay > 1,
-  and with the user's eyes — ask for a screenshot.
-
-### 2. Stale error banner: “3D: style 'cartoon': no representation cell — reload the structure”
-
-`activeComps` (`src/mol/scene.ts`) is module state; `setRepr`/`setColorMode` are called from
-`StructurePanel` effects before the first `showStructure()` finished (and again right after a scene
-recreate), so they note “no representation cell”, and `molDiagnostics.lastError` is **never cleared**
-— the amber banner then shows a stale error forever.
-
-Do:
-- don't record an error when there is nothing to colour yet: skip silently if no structure text is
-  loaded / a load is in flight (e.g. pass a `loaded` flag or compare against the store status),
-  or queue the requested style/colour and apply it in `showStructure()` instead of erroring;
-- clear `molDiagnostics.lastError` on the next successful apply (and on model switch / scene
-  recreate), so the banner disappears when the problem is gone;
-- keep real failures visible (`diagnostics.errors` history may keep the last few).
-
-### 3. Mol*'s “Toggle Controls Panel” (benchkey icon) shows nothing — the scene tools
-   (Quick Styles / Components / Goals / …) never appear
-
-Facts from the source: the benchkey icon is `BuildOutlinedSvg` → `toggleControls` →
-`layout.showControls` (`mol-plugin-ui/viewport.js`), and per `mol-plugin-ui/plugin.js` each region is
-rendered as `layout.showControls && controls.<region> !== 'none' && this.region(...)`. In 5.11 the
-**scene tools live in the `right` region (`ControlsWrapper`)**, while our advanced spec sets
-`regionState.right: 'hidden'` (see `createScene`, `src/mol/scene.ts`, the line with
-`{ left: 'full', top: 'collapsed', right: 'hidden', bottom: 'hidden' }`). The `left` region we already
-enable is the Home/State/Help panel, which is not the tools menu.
-
-Do:
-- in advanced mode set `regionState.right: 'full'` (and `left: 'full'`, `top: 'collapsed'`,
-  `bottom: adv ? 'full' : 'hidden'` as today);
-- confirm with `npm run probe:molstar-ui` that `right` renders and contains the tools
-  (look for “Quick Styles” / “Components” text inside `.msp-layout-right`);
-- since the benchkey toggles `showControls` at runtime and runtime toggles cannot re-render regions
-  (fact 3 above), keep ⚙ molstar as the recreate path and, if the benchkey still looks dead, hide
-  it in advanced mode via CSS (`.mol-host.advanced .msp-viewport-controls [title='Toggle Controls Panel']`)
-  or route it through our own toggle.
-
-### 4. Mol* fullscreen / expanded view is painted behind our header and the right panel
-
-The plugin lives inside the viewer column, so Mol\* can only paint within its host, while our
-`<header>` (`z-30` in `Header.tsx`) and the right panel are siblings above it; when Mol\* expands
-(`isExpanded` / `expandToFullscreen`) it therefore appears **under** the header and the PAE/pLDDT
-canvases.
-
-Do (pick one, keep it simple):
-- **overlay route**: when `molstarAdvanced` (or Mol\*'s expanded state) is on, lift the viewer column
-  (`position: relative; z-index: 60; background: …`), and hide the header content, the splitter and the
-  right panel while expanded, with an obvious way back (Esc + the ⚙ button); listen to Mol\*'s layout
-  state (`plugin.layout.events.updated`) so Mol\*'s own buttons do the same thing; or
-- **portal route**: mount the plugin host in a `document.body` portal sized
-  `position: fixed; inset: 0; z-index: 70` in advanced mode, unmount/reparent on toggle-off.
-- either way: after any layout change dispatch `resize` (we already nudge at 0 / 250 / 900 ms in
-  `setUiAdvanced`) and re-apply the current selection/highlight after a scene recreate
-  (`StructurePanel` re-applies after each load — keep that).
+1. **Ball-and-stick / licorice bonds uncoloured** — *fix attempted, high confidence but unverified.*
+   The colour callback receives a **bond location** for bond visuals, and the themes were guarded by
+   `StructureElement.Location.is()`, so cylinders fell back to grey while atoms were coloured.
+   `elementLocations()` in `src/mol/scene.ts` now expands a bond to its two atoms (pLDDT = mean,
+   domain = first residue). **Verify:** `__orf1.mol.themeStats()` before/after switching to licorice —
+   `calls` must roughly double (atoms + bonds) with `distinct > 1`. If `calls` does **not** increase,
+   Mol* never asked our theme for bond geometry (granularity mismatch) and the remaining option is to
+   give the themes a bond locator / use `granularity: 'element'`, or fall back to a built-in theme for
+   those two styles.
+2. **Stale “3D: style 'cartoon': no representation cell” banner** — *fixed, high confidence.* The note
+   is suppressed while nothing is on screen (intent is stored in `currentRepr`/`currentColorMode` and
+   applied by `showStructure`), and `noteSuccess()` clears `molDiagnostics.lastError` on the next
+   success. Real failures still surface.
+3. **Benchkey “Toggle Controls Panel” / scene tools missing** — *fixed, verified headless.* In 5.11 the
+   scene tools live in the **right** region (`ControlsWrapper`), and our advanced spec had
+   `right: 'hidden'`. Now `left: 'full', right: 'full', top: 'collapsed'` and
+   `npm run probe:molstar_ui.mjs` reports regions `main/top/left/right/bottom` with
+   `.msp-layout-right` containing “Structure Tools … Quick Styles …”. Note the benchkey toggles
+   `layout.showControls` at runtime, which cannot reveal regions after mount (fact 3 above) — ⚙ molstar
+   remains the recreate path.
+4. **Mol* fullscreen/expanded painted under the header and the right panel** — *fix attempted.*
+   `.viewer-advanced` now lifts the viewer box to `z-index: 60` (header is `z-30`, the right panel is a
+   later sibling) and stops clipping (`overflow: visible`; radius moved to `.mol-host`) so Mol*'s
+   popover/dropdown panels can escape the box. Verify: open ⚙ molstar, expand, open a Mol* dropdown
+   near the box edge — nothing should be cut off or hidden.
 
 ## Ground rules
 
