@@ -58,6 +58,28 @@ body {
    panel and the viewport. Repositioning the host here instead used to leave it
    with no height at all — the structure simply vanished when the toggle was on. */
 
+/* Advanced mode (⚙ molstar): Mol* lays its regions out absolutely *inside* the
+   host, and its dropdown/popover panels are rendered in that same subtree. Our
+   viewer box is `overflow-hidden` and the header carries `z-30`, while the right
+   panel simply comes later in DOM order — so Mol*'s expanded view and its
+   popovers ended up painted under them. Lift the box and let popovers escape. */
+.viewer-advanced {
+  position: relative;
+  z-index: 60;
+  overflow: visible;
+}
+
+/* NB: no overflow:hidden here — Mol* renders its popover/dropdown panels inside
+   this subtree, and clipping the host is what cut the tool menus off. */
+.viewer-advanced .mol-host {
+  border-radius: 0.75rem;
+}
+
+.viewer-advanced .msp-popover-root,
+.viewer-advanced .msp-popover-root .msp-panel {
+  z-index: 70;
+}
+
 /* ---------------------------------------------------------------- scrollbars  */
 * {
   scrollbar-width: thin;

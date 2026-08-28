@@ -19,6 +19,10 @@ for (const adv of ['0', '1']) {
       regions: [...document.querySelectorAll('.msp-layout-region')].map((e) => e.className.replace('msp-layout-region msp-layout-', '')),
       left: rect('.msp-layout-left'),
       leftPanelText: (document.querySelector('.msp-layout-left')?.innerText || '').slice(0, 120).replace(/\s+/g, ' '),
+      right: rect('.msp-layout-right'),
+      rightPanelText: (document.querySelector('.msp-layout-right')?.innerText || '').slice(0, 160).replace(/\s+/g, ' '),
+      shell: (() => { const e = document.querySelector('.viewer-advanced'); if (!e) return null; const cs = getComputedStyle(e); return { z: cs.zIndex, overflow: cs.overflow, cls: e.className.slice(0, 60) }; })(),
+      advancedButton: !!document.querySelector(".msp-viewport-controls [title='Toggle Controls Panel']"),
       themes: window.__orf1.mol.themes().filter((t) => t.startsWith('orf1')),
     };
   });

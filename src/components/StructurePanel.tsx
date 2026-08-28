@@ -221,7 +221,12 @@ export function StructurePanel() {
   };
 
   return (
-    <div ref={wrapRef} className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-slate-800 bg-[#0b1017]">
+    <div
+      ref={wrapRef}
+      className={`relative min-h-0 flex-1 overflow-hidden rounded-xl border border-slate-800 bg-[#0b1017]${
+        advanced ? ' viewer-advanced' : ''
+      }`}
+    >
       <div ref={hostRef} className={`mol-host${advanced ? ' advanced' : ''}`} />
 
       {statusStructure === 'loading' && !ready && (

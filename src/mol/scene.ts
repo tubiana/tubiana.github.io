@@ -30,7 +30,20 @@ export const THEME_PLDDT = 'orf1-plddt';
  * UI shows `lastError` — the 3D path cannot be exercised in every environment
  * (no WebGL), so failures must be visible to the user rather than a console.warn.
  */
-export const molDiagnostics: { errors: string[]; lastError: string | null } = { errors: [], lastError: null };
+export const molDiagnostics: { errors: string[]; lastError: string | null; lastOk: string } = {
+  errors: [],
+  lastError: null,
+  lastOk: '',
+};
+
+/** True while a successfully built structure is on screen. */
+let sceneHasStructure = false;
+
+/** Clear the banner as soon as something works again — a stale error is worse than none. */
+function noteSuccess(what: string) {
+  molDiagnostics.lastError = null;
+  molDiagnostics.lastOk = what;
+}
 
 function note(what: string, e: unknown): string {
   const msg = `${what}: ${String(e instanceof Error ? e.message : e)}`;
@@ -295,28 +308,79 @@ export function resetThemeStats() {
   for (const k of Object.keys(seenColors)) delete seenColors[k];
 }
 
-function resnumOf(location: any): number {
-  try {
-    if (!location || !StructureElement.Location.is(location)) return -1;
-    const n = StructureProperties.residue.label_seq_id(location);
-    return typeof n === 'number' && isFinite(n) ? n : -1;
-  } catch {
-    return -1;
+/**
+ * Reduce whatever Mol* hands `color()` to element locations.
+ *
+ * Bond visuals (`intra-bond` / `structure-intra-bond` of ball-and-stick &
+ * licorice) pass a **bond location**, not a `StructureElement.Location`, so a
+ * naive `StructureElement.Location.is()` guard makes every bond fall back to the
+ * grey colour — atoms coloured, cylinders white. For a bond we return both
+ * bonded atoms and let the callers combine them.
+ */
+function elementLocations(location: any): any[] {
+  if (!location) return [];
+  if (location.unit && typeof location.element === 'number') return [location];
+  const b = location.b;
+  if (b) {
+    const unit = b.unit ?? b.units?.[0];
+    const indices: number[] = Array.isArray(b.index) ? b.index : [b.index0, b.index1];
+    const out: any[] = [];
+    for (const i of indices) {
+      const el = unit?.elements?.[i];
+      if (el === undefined || el === null) continue;
+      out.push({ structure: location.structure ?? unit?.model?.structure, unit, element: el });
+    }
+    if (out.length) return out;
   }
+  // anything Mol* still considers an element location
+  try {
+    if (StructureElement.Location.is(location)) return [location];
+  } catch {
+    /* ignore */
+  }
+  return [];
 }
 
-/** pLDDT at a location: B-factor first (per atom, always present), manifest as backup. */
-function plddtOf(location: any): number {
-  let b = -1;
-  try {
-    b = StructureProperties.atom.B_iso_or_equiv(location);
-  } catch {
-    b = -1;
+function resnumOf(location: any): number {
+  for (const loc of elementLocations(location)) {
+    try {
+      const n = StructureProperties.residue.label_seq_id(loc);
+      if (typeof n === 'number' && isFinite(n)) return n;
+    } catch {
+      /* try the next atom */
+    }
   }
-  if (typeof b === 'number' && b > 0 && b <= 100) return b;
-  const r = resnumOf(location);
-  if (activePlddt && r >= 1 && r <= activePlddt.length) return activePlddt[r - 1];
   return -1;
+}
+
+/**
+ * pLDDT at a location: B-factor first (per atom, always present), manifest array
+ * as backup. A bond location gets the mean of its two atoms so the cylinder is
+ * coloured like the residues it joins.
+ */
+function plddtOf(location: any): number {
+  const locs = elementLocations(location);
+  if (!locs.length) return -1;
+  let sum = 0;
+  let n = 0;
+  for (const loc of locs) {
+    let v = -1;
+    try {
+      const b = StructureProperties.atom.B_iso_or_equiv(loc);
+      if (typeof b === 'number' && b > 0 && b <= 100) v = b;
+    } catch {
+      /* fall through to the manifest */
+    }
+    if (v < 0) {
+      const r = resnumOf(loc);
+      if (activePlddt && r >= 1 && r <= activePlddt.length) v = activePlddt[r - 1];
+    }
+    if (v >= 0) {
+      sum += v;
+      n++;
+    }
+  }
+  return n ? sum / n : -1;
 }
 
 /** Stable per-name colour, only used if a domain row has no usable colour. */
@@ -486,8 +550,11 @@ export async function createScene(container: HTMLElement, opts: SceneOptions = {
         showSequenceView: adv,
         showLog: adv,
         isRotated: false,
+        // `right` is where Mol* keeps the scene tools (Quick Styles, Components,
+        // Goals, …) in 5.11; `left` is only Home/State/Help. Keeping it hidden is
+        // exactly why the benchkey "Toggle Controls Panel" icon looked dead.
         regionState: adv
-          ? { left: 'full', top: 'collapsed', right: 'hidden', bottom: 'hidden' }
+          ? { left: 'full', top: 'collapsed', right: 'full', bottom: 'hidden' }
           : { left: 'hidden', top: 'hidden', right: 'hidden', bottom: 'hidden' },
       },
     },
@@ -659,6 +726,7 @@ export async function showStructure(plugin: PluginUIContext, pdbText: string, o:
   try {
     await plugin.clear();
     activeComps = [];
+    sceneHasStructure = false;
     activePlugin = plugin;
 
     const data = await plugin.builders.data.rawData({ data: pdbText, label: o.label }, { state: { label: o.label } } as any);
@@ -702,6 +770,8 @@ export async function showStructure(plugin: PluginUIContext, pdbText: string, o:
 
     const structures = currentStructures(plugin);
     for (const s of structures) buildLookup(s, o.plddt ?? null, o.domains ?? []);
+    sceneHasStructure = activeComps.length > 0;
+    if (sceneHasStructure) noteSuccess(`loaded ${o.label} (${o.repr}/${themeId})`);
     return structures[0] ?? null;
   } catch (e) {
     note('structure load', e);
@@ -749,7 +819,10 @@ export async function setColorMode(plugin: PluginUIContext, mode: ColorMode): Pr
   currentColorMode = mode;
   const themeId = themeIdOf(plugin, mode);
   if (!activeComps.length) {
-    note(`colour mode '${mode}'`, new Error('no representation cell — reload the structure'));
+    // Nothing on screen yet (effects run before the first load finished, or the scene
+    // was recreated): the intent lives in `currentColorMode` and showStructure applies
+    // it — not an error worth a banner.
+    if (sceneHasStructure) note(`colour mode '${mode}'`, new Error('no representation cell — reload the structure'));
     return;
   }
   let ok = 0;
@@ -758,6 +831,8 @@ export async function setColorMode(plugin: PluginUIContext, mode: ColorMode): Pr
   }
   if (!ok) {
     note(`colour mode '${mode}' (${themeId})`, new Error('all representations failed to rebuild'));
+  } else {
+    noteSuccess(`colour mode '${mode}' (${themeId})`);
   }
 }
 
@@ -765,8 +840,8 @@ export async function setRepr(plugin: PluginUIContext, repr: ReprKind): Promise<
   activePlugin = plugin;
   currentRepr = repr;
   if (!activeComps.length) {
-    note(`style '${repr}'`, new Error('no representation cell — reload the structure'));
-    return;
+    if (sceneHasStructure) note(`style '${repr}'`, new Error('no representation cell — reload the structure'));
+    return; // otherwise pending intent, applied by showStructure
   }
   let ok = 0;
   for (const entry of activeComps) {
@@ -774,6 +849,7 @@ export async function setRepr(plugin: PluginUIContext, repr: ReprKind): Promise<
       ok++;
   }
   if (!ok) note(`style '${repr}'`, new Error('all representations failed to rebuild'));
+  else noteSuccess(`style '${repr}'`);
 }
 
 // ---------------------------------------------------------------------- selection
