@@ -108,7 +108,15 @@ full-atom / figure downloads, style switching (cartoon, backbone, ball-and-stick
 **pLDDT and domain colouring** (`orf1-plddt: calls 5073 / unassigned 0 / distinct 4`; domain colours
 now come from each `DomainRange.color` in the CSV).
 
-## Open issues — status after `d87b2d6` (all need a WebGL browser to confirm)
+## The one thing still broken → `PROMPT-molstar-toolmenu.md`
+
+Mol\*'s **Structure Tools** panel (right region: Structure / Measurements / Quick Styles / Components /
+Export…) still does not show in the embedded viewer. Start with **`PROMPT-molstar-toolmenu.md`**: it
+contains the symptom, the exact Mol* source facts, a 30 s DevTools diagnosis that picks the right fix,
+and three ranked fixes. Screenshots: wanted = `smoke-artifacts/10-molstar-toolmenu.png`, current =
+`smoke-artifacts/11-start_to_be_tired.png`.
+
+## Open issues — status after `b13db0e` (all need a WebGL browser to confirm)
 
 1. **Ball-and-stick / licorice bonds uncoloured** — *root cause confirmed, fix shipped.*
    The real bond location in Mol* is `{ structure, aUnit, aIndex, bUnit, bIndex }` (indices into each
