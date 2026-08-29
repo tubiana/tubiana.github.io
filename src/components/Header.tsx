@@ -12,11 +12,22 @@ const COLOR_MODES: { id: ColorMode; label: string; hint: string }[] = [
   { id: 'uniform', label: 'Plain', hint: 'Uniform colour' },
 ];
 
+/*
+ * Styles are kept here (and not only in Mol*'s Structure Tools panel) because the
+ * model is full-atom: `Licorice` = Mol* `line` (thin bonds for every bond, side
+ * chains included), `Ball & stick` = spheres + cylinders, `Sphere`/`Spacefill`
+ * = vdW, and the two surface types for the molecular surface. Ligands/ions never
+ * use cartoon/surface — `reprTypeFor()` in src/mol/scene.ts keeps them visible.
+ */
 const REPRS: { value: ReprKind; label: string }[] = [
   { value: 'cartoon', label: 'Cartoon' },
   { value: 'backbone', label: 'Backbone' },
-  { value: 'ballStick', label: 'Ball & stick' },
   { value: 'licorice', label: 'Licorice (lines)' },
+  { value: 'ballStick', label: 'Ball & stick' },
+  { value: 'sphere', label: 'Sphere' },
+  { value: 'spacefill', label: 'Spacefill' },
+  { value: 'surface', label: 'Surface (slow)' },
+  { value: 'molecularSurface', label: 'Molecular surface (slow)' },
 ];
 
 export function Header() {

@@ -18,7 +18,15 @@ import { msaWorker } from '../lib/rpcWorker';
 import { fetchBytes, bytesToText, debounce, gunzipBlob, lsGet, lsSet } from '../lib/util';
 
 export type ColorMode = 'plddt' | 'plddtSmooth' | 'domain' | 'chain' | 'uniform';
-export type ReprKind = 'cartoon' | 'backbone' | 'ballStick' | 'licorice';
+export type ReprKind =
+  | 'cartoon'
+  | 'backbone'
+  | 'licorice'
+  | 'ballStick'
+  | 'sphere'
+  | 'spacefill'
+  | 'surface'
+  | 'molecularSurface';
 export type TabId = 'accent' | 'pae' | 'plddt';
 export type SourceKind = 'pae' | 'plddt' | 'msa' | 'domain' | 'pair';
 
@@ -108,6 +116,8 @@ interface AppState {
   resetPaeWindow: () => void;
   setColorMode: (m: ColorMode) => void;
   setRepr: (r: ReprKind) => void;
+  legendOpen: boolean;
+  setLegendOpen: (on: boolean) => void;
   setTab: (t: TabId) => void;
   setSelection: (sel: Omit<Selection, 'nonce'> | null) => void;
   selectPair: (i: number, j: number) => void;
@@ -191,6 +201,7 @@ export const useStore = create<AppState>((set, get) => ({
   paeWindow: { x0: 0, y0: 0, x1: 1, y1: 1 },
   highlightSelectionVisual: true,
   molstarAdvanced: lsGet('orf1.molstarAdvanced') === '1',
+  legendOpen: lsGet('orf1.legend') !== '0',
   msaOpen: false,
   msaHeight: 260,
   helpOpen: false,
@@ -403,6 +414,10 @@ export const useStore = create<AppState>((set, get) => ({
     syncUrl(get());
   },
   setRepr: (repr) => set({ repr }),
+  setLegendOpen: (legendOpen) => {
+    lsSet('orf1.legend', legendOpen ? '1' : '0');
+    set({ legendOpen });
+  },
   setTab: (tab) => {
     set({ tab });
     syncUrl(get());

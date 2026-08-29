@@ -309,43 +309,71 @@ export function StructurePanel() {
   );
 }
 
+/**
+ * Colour legend for the viewport.
+ *
+ * Collapsible and collapsed automatically on entering Fullscreen: the box then
+ * covers the page, so a legend pinned to its corner would sit on top of the
+ * molecule with nothing to relate to. The toggle brings it back on demand.
+ */
 function Legend() {
   const colorMode = useStore((s) => s.colorMode);
+  const open = useStore((s) => s.legendOpen);
+  const setOpen = useStore((s) => s.setLegendOpen);
   const model = useStore((s) => s.model);
   const manifestDomains = useStore((s) => s.manifest?.domains ?? []);
-  if (colorMode === 'plddt' || colorMode === 'plddtSmooth') {
-    return (
-      <div className="pointer-events-none absolute bottom-2 right-2 flex flex-col gap-1 rounded-lg border border-slate-800/80 bg-slate-950/70 p-2 backdrop-blur">
-        <div className="label">pLDDT (Å-score)</div>
-        {PLDDT_BANDS.map((b) => (
-          <div key={b.label} className="flex items-center gap-1.5 text-[10.5px] text-slate-400">
-            <span className="h-2.5 w-4 rounded-sm" style={{ background: b.color }} />
-            {b.label}
-          </div>
-        ))}
-      </div>
-    );
-  }
-  if (colorMode === 'domain') {
-    return (
-      <div className="pointer-events-none absolute bottom-2 right-2 flex flex-col gap-1 rounded-lg border border-slate-800/80 bg-slate-950/70 p-2 backdrop-blur">
-        <div className="label">domains</div>
-        {(model?.domains ?? []).map((d, i) => {
-          const swatch = manifestDomains.find((x) => x.name === d.name)?.color ?? d.color;
-          return (
-            <div key={`${d.name}-${i}`} className="flex items-center gap-1.5 text-[10.5px] text-slate-400">
-              <span className="h-2.5 w-4 rounded-sm" style={{ background: swatch }} />
-              <span className="w-[68px] truncate">{d.name}</span>
-              <span className="tabular text-slate-500">{d.start}–{d.end}</span>
-            </div>
-          );
-        })}
-        <div className="flex items-center gap-1.5 text-[10.5px] text-slate-500">
-          <span className="h-2.5 w-4 rounded-sm bg-[#8b93a7]" />
-          unannotated
-        </div>
-      </div>
-    );
-  }
-  return null;
+
+  useEffect(() => {
+    const onFs = () => {
+      if (document.fullscreenElement) useStore.getState().setLegendOpen(false);
+    };
+    document.addEventListener('fullscreenchange', onFs);
+    return () => document.removeEventListener('fullscreenchange', onFs);
+  }, []);
+
+  const plddt = colorMode === 'plddt' || colorMode === 'plddtSmooth';
+  const domain = colorMode === 'domain';
+  if (!plddt && !domain) return null;
+
+  return (
+    <div className="absolute bottom-2 right-2 flex flex-col gap-1 rounded-lg border border-slate-800/80 bg-slate-950/70 p-2 backdrop-blur">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="label flex items-center gap-1.5 text-left text-slate-300 hover:text-sky-300"
+        title={open ? 'Collapse the legend' : 'Expand the legend'}
+      >
+        <span className="tabular text-slate-500">{open ? '▾' : '▸'}</span>
+        {plddt ? 'pLDDT (Å-score)' : 'domains'}
+      </button>
+      {open &&
+        (plddt
+          ? PLDDT_BANDS.map((b) => (
+              <div key={b.label} className="flex items-center gap-1.5 text-[10.5px] text-slate-400">
+                <span className="h-2.5 w-4 rounded-sm" style={{ background: b.color }} />
+                {b.label}
+              </div>
+            ))
+          : (
+            <>
+              {(model?.domains ?? []).map((d, i) => {
+                const swatch = manifestDomains.find((x) => x.name === d.name)?.color ?? d.color;
+                return (
+                  <div key={`${d.name}-${i}`} className="flex items-center gap-1.5 text-[10.5px] text-slate-400">
+                    <span className="h-2.5 w-4 rounded-sm" style={{ background: swatch }} />
+                    <span className="w-[68px] truncate">{d.name}</span>
+                    <span className="tabular text-slate-500">
+                      {d.start}–{d.end}
+                    </span>
+                  </div>
+                );
+              })}
+              <div className="flex items-center gap-1.5 text-[10.5px] text-slate-500">
+                <span className="h-2.5 w-4 rounded-sm bg-[#8b93a7]" />
+                unannotated
+              </div>
+            </>
+          ))}
+    </div>
+  );
 }

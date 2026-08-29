@@ -290,6 +290,8 @@ export function clearThemeCaches(_modelId?: string) {
  */
 export interface ThemeStat {
   calls: number;
+  /** calls made with a bond location — the bond cylinders of ball-and-stick / licorice */
+  bondCalls: number;
   unassigned: number;
   distinct: number;
   lastResnum: number;
@@ -298,7 +300,14 @@ export interface ThemeStat {
 const themeStats: Record<string, ThemeStat> = {};
 const seenColors: Record<string, Set<number>> = {};
 function stat(name: string): ThemeStat {
-  return (themeStats[name] ??= { calls: 0, unassigned: 0, distinct: 0, lastResnum: -1, lastPlddt: -1 });
+  return (themeStats[name] ??= {
+    calls: 0,
+    bondCalls: 0,
+    unassigned: 0,
+    distinct: 0,
+    lastResnum: -1,
+    lastPlddt: -1,
+  });
 }
 export function themeStatsSnapshot(): Record<string, ThemeStat> {
   return JSON.parse(JSON.stringify(themeStats));
@@ -320,6 +329,26 @@ export function resetThemeStats() {
 function elementLocations(location: any): any[] {
   if (!location) return [];
   if (location.unit && typeof location.element === 'number') return [location];
+
+  // Structure.Bond.Location = { structure, aUnit, aIndex, bUnit, bIndex } with the
+  // indices into each unit's `elements` — this is what the bond visuals of
+  // ball-and-stick / licorice / surface pass to the colour callback.
+  if (location.aUnit || location.bUnit) {
+    const out: any[] = [];
+    const pairs: Array<[any, number | undefined]> = [
+      [location.aUnit, location.aIndex],
+      [location.bUnit, location.bIndex],
+    ];
+    for (const [unit, idx] of pairs) {
+      if (!unit || typeof idx !== 'number') continue;
+      const el = unit.elements?.[idx];
+      if (typeof el !== 'number') continue;
+      out.push({ structure: location.structure ?? unit.model?.structure, unit, element: el });
+    }
+    if (out.length) return out;
+  }
+
+  // defensive: a few code paths hand over a Bond object instead of a Location
   const b = location.b;
   if (b) {
     const unit = b.unit ?? b.units?.[0];
@@ -327,7 +356,7 @@ function elementLocations(location: any): any[] {
     const out: any[] = [];
     for (const i of indices) {
       const el = unit?.elements?.[i];
-      if (el === undefined || el === null) continue;
+      if (typeof el !== 'number') continue;
       out.push({ structure: location.structure ?? unit?.model?.structure, unit, element: el });
     }
     if (out.length) return out;
@@ -425,6 +454,7 @@ function makeTheme(
       const c = pick(location) | 0;
       const st = stat(name);
       st.calls++;
+      if (location && (location.aUnit || location.bUnit || location.b)) st.bondCalls++;
       if (c === COLOR_UNASSIGNED) st.unassigned++;
       const seen = (seenColors[name] ??= new Set<number>());
       seen.add(c);
@@ -490,11 +520,16 @@ export interface Scene {
   dispose: () => void;
 }
 
+/** App style -> Mol* representation type name. */
 export const REPR_NAMES: Record<ReprKind, string> = {
   cartoon: 'cartoon',
   backbone: 'backbone',
-  ballStick: 'ball-and-stick',
   licorice: 'line',
+  ballStick: 'ball-and-stick',
+  sphere: 'spacefill',
+  spacefill: 'spacefill',
+  surface: 'surface',
+  molecularSurface: 'molecular-surface',
 };
 
 /** Mol* throws its own unstyled fallback when GL is missing — check first. */
@@ -693,8 +728,12 @@ function themeIdOf(plugin: PluginUIContext, mode: ColorMode): string {
 
 /** Representation type name for one component kind under the requested style. */
 function reprTypeFor(repr: ReprKind, kind: CompKind): string {
-  if (kind === 'polymer' || kind === 'whole') return REPR_NAMES[repr] ?? 'cartoon';
-  if (repr === 'ballStick' || repr === 'licorice') return 'ball-and-stick';
+  const name = REPR_NAMES[repr] ?? 'cartoon';
+  if (kind === 'polymer' || kind === 'whole') return name;
+  // Ligands and ions are never modelled as cartoon/backbone/surface: they get
+  // sticks or spheres, otherwise they vanish from the view.
+  if (repr === 'sphere' || repr === 'spacefill') return 'spacefill';
+  if (repr === 'surface' || repr === 'molecularSurface') return 'ball-and-stick';
   return kind === 'ion' ? 'spacefill' : 'ball-and-stick';
 }
 

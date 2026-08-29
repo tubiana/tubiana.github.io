@@ -110,15 +110,20 @@ now come from each `DomainRange.color` in the CSV).
 
 ## Open issues — status after `d87b2d6` (all need a WebGL browser to confirm)
 
-1. **Ball-and-stick / licorice bonds uncoloured** — *fix attempted, high confidence but unverified.*
-   The colour callback receives a **bond location** for bond visuals, and the themes were guarded by
-   `StructureElement.Location.is()`, so cylinders fell back to grey while atoms were coloured.
-   `elementLocations()` in `src/mol/scene.ts` now expands a bond to its two atoms (pLDDT = mean,
-   domain = first residue). **Verify:** `__orf1.mol.themeStats()` before/after switching to licorice —
-   `calls` must roughly double (atoms + bonds) with `distinct > 1`. If `calls` does **not** increase,
-   Mol* never asked our theme for bond geometry (granularity mismatch) and the remaining option is to
-   give the themes a bond locator / use `granularity: 'element'`, or fall back to a built-in theme for
-   those two styles.
+1. **Ball-and-stick / licorice bonds uncoloured** — *root cause confirmed, fix shipped.*
+   The real bond location in Mol* is `{ structure, aUnit, aIndex, bUnit, bIndex }` (indices into each
+   unit's `elements`) — see `mol-model/structure/structure/unit/bonds.d.ts`. The themes were guarded by
+   `StructureElement.Location.is()`, which is false for bond locations, so every bond cylinder fell back
+   to grey while atoms were coloured. `elementLocations()` in `src/mol/scene.ts` now expands a bond
+   location to its two atoms (pLDDT = mean of the pair, domain = first residue) and keeps a defensive
+   branch for `{ b }` shapes.
+   **Metric:** `__orf1.mol.themeStats()['orf1-plddt']` now reports `bondCalls`. In licorice/ball-and-stick
+   `bondCalls` must be > 0 with `distinct > 1`. If `bondCalls === 0`, Mol* did not route bond geometry
+   through our theme at all (locator/granularity mismatch) — the remaining options are `granularity:
+   'element'`, declaring a bond locator, or falling back to a built-in theme for those two styles.
+   Styles were also broadened to Mol*'s full set (cartoon, backbone, line/licorice, ball-and-stick,
+   sphere, spacefill, surface, molecular surface) — `reprTypeFor()` keeps ligands/ions as sticks/spheres
+   so they never disappear.
 2. **Stale “3D: style 'cartoon': no representation cell” banner** — *fixed, high confidence.* The note
    is suppressed while nothing is on screen (intent is stored in `currentRepr`/`currentColorMode` and
    applied by `showStructure`), and `noteSuccess()` clears `molDiagnostics.lastError` on the next
@@ -135,6 +140,9 @@ now come from each `DomainRange.color` in the CSV).
    later sibling) and stops clipping (`overflow: visible`; radius moved to `.mol-host`) so Mol*'s
    popover/dropdown panels can escape the box. Verify: open ⚙ molstar, expand, open a Mol* dropdown
    near the box edge — nothing should be cut off or hidden.
+
+5. **Legend floated over the molecule in Fullscreen** — *fixed.* The viewport legend is now collapsible
+   (persisted in `localStorage['orf1.legend']`) and collapses automatically on `fullscreenchange`.
 
 ## Ground rules
 
