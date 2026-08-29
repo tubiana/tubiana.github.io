@@ -1,0 +1,31 @@
+# ---------------------------------------------------------------- dependencies / build
+node_modules/
+dist/
+.vite/
+*.log
+.DS_Store
+.turbo/
+.env
+.env.*
+
+# ---------------------------------------------------------------- DATA — never in git
+# This repository holds CODE ONLY. The dataset lives on Hugging Face:
+#   https://huggingface.co/datasets/ttubiana/HEV-ORF1-models
+# (or institute storage later) and is reached at runtime through the app's
+# configurable data base URL — see README.md and REPORT-hf-upload.md.
+
+# generated viewer payload (~1 GB): rebuild locally with scripts/prepare_data.py
+public/data/
+scripts/.cache/
+
+# raw source data tree (~25 GB: AlphaFold outputs per model)
+models_ORF1_files/
+
+# staging tree + upload stage manifests for `hf upload` (scripts/make_hf_dataset.py)
+hf-dataset/
+stages/
+
+# Playwright screenshots / traces
+smoke-artifacts/
+test-results/
+playwright-report/

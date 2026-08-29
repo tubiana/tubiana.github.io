@@ -1,0 +1,37 @@
+{
+  "name": "orf1viewer",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "High-performance static SPA to browse, visualize and interactively analyze 1178 AlphaFold2 ORF1 predictions (Mol* 3D + interactive PAE matrices + pLDDT + Clustal MSA).",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "build:site": "npm run build && node scripts/sync-site.mjs",
+    "prepare:data": "python3 scripts/prepare_data.py",
+    "prepare:hf": "python3 scripts/make_hf_dataset.py",
+    "upload:hf": "hf upload ttubiana/HEV-ORF1-models hf-dataset . --repo-type dataset --commit-message \"ORF1 viewer payload\"",
+    "dev:fast": "vite --port 5173",
+    "smoke": "node scripts/smoke_test.mjs",
+    "probe:molstar-ui": "node scripts/probe_molstar_ui.mjs"
+  },
+  "dependencies": {
+    "molstar": "^5.11.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^6.1.1",
+    "playwright": "^1.62.1",
+    "sass": "^1.83.0",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^5.9.0",
+    "vite": "^8.2.2"
+  }
+}
