@@ -93,8 +93,12 @@ repo is still empty as it is now, just get the order right the first time.
 
 ## 4. Visibility: the repo must be **public** for the viewer
 
-It is currently **private** (`hf datasets info ttubiana/HEV-ORF1-models`). A browser cannot send your
-token from a static site, so:
+> **Status — done 2026-08-29**: Tier A uploaded (5 899 files, **1.02 GB**, 6 commits, all payloads in
+> LFS), repo switched to **public**, and `npm run smoke -- --data-url <hub root>` passes **39/39**
+> with the viewport mounted and PAE checkpoints at `maxΔ 0.000 Å`. Anonymous GET goes 302 → CDN → 200
+> with `access-control-allow-origin` echoed, `manifest.json` = 2 806 747 bytes.
+
+A browser cannot send your token from a static site, so:
 
 * Web UI → dataset settings → *Repository settings* → visibility → public, or
   `huggingface_hub.HfApi().update_repo_settings("ttubiana/HEV-ORF1-models", repo_type="dataset", private=False)`
@@ -148,6 +152,11 @@ DIR=$(mktemp -d) && hf download ttubiana/HEV-ORF1-models --repo-type dataset --l
 
 # 6.3 lossless decode of one PAE matrix through the LUT (must be <= 1.5 Å vs verify.points)
 #     snippet is in the dataset card's "Reading the numbers without the app"
+
+# 6.3bis the whole 39-check suite, driven against the Hub payload (manifest, PAE image + LUT,
+#     full-atom PDB, MSA, Mol* viewport) — needs a local build or dev server
+npm run smoke -- --data-url https://huggingface.co/datasets/ttubiana/HEV-ORF1-models/resolve/main
+npm run smoke -- --url http://localhost:5173/ --data-url https://huggingface.co/datasets/ttubiana/HEV-ORF1-models/resolve/main
 
 # 6.4 the app against the Hub payload
 #     <pages url>/?dataBaseUrl=https://huggingface.co/datasets/ttubiana/HEV-ORF1-models/resolve/main

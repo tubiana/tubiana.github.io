@@ -215,6 +215,8 @@ git. Realistic deployments:
   Staging + upload: `npm run prepare:hf` then the staged commands in
   **[`REPORT-hf-upload.md`](REPORT-hf-upload.md)** (LFS patterns, checksums,
   provenance, verification, the optional 25 GB raw tier).
+  *Status: uploaded 2026-08-29 — 5 899 files / 1.02 GB, public, `smoke --data-url`
+  green (39/39).*
   Use `--preset lean` for bandwidth-constrained hosts, `--preset archive` for
   the archival deposit (full-atom PDB + scores JSON included).
 * **Payload on Zenodo / R2 / S3 / a lab server** — same layout, same data-root
@@ -240,6 +242,9 @@ npm run typecheck
 npm run build && npm run smoke          # serves dist/, drives Chromium
 npm run smoke -- --url http://localhost:5177 --headed
 python3 scripts/prepare_data.py --selfcheck 10
+
+# run every check against the Hugging Face payload instead of public/data/
+npm run smoke -- --data-url https://huggingface.co/datasets/ttubiana/HEV-ORF1-models/resolve/main
 ```
 
 `scripts/smoke_test.mjs` boots the built app and asserts the interactions that
@@ -252,6 +257,10 @@ alignment-vs-structure consistency (< 2 % mismatch), model switching,
 overflow. It fails on uncaught page/console errors, and reports WebGL-dependent
 checks as skipped when the test browser has no GL (the CI sandbox case).
 Screenshots land in `smoke-artifacts/`.
+
+With `--data-url` the same 39 checks run with **every payload fetch pointed at a
+remote data root** — the Hugging Face dataset currently passes it end to end
+(manifest, PAE image + LUT decode at Δ 0, full-atom PDB, MSA, Mol* viewport).
 
 ## Notes & acknowledgements
 
