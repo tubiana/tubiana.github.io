@@ -4,6 +4,7 @@
  *
  *   npm run build && npm run smoke            # serves dist/ with `vite preview`
  *   npm run smoke -- --url http://localhost:5173   # test a dev server instead
+ *   npm run smoke -- --data-url https://huggingface.co/datasets/ttubiana/HEV-ORF1-models/resolve/main
  *   npm run smoke -- --headed --slow 120
  *
  * It boots the SPA, waits for the manifest + first model, then exercises the
@@ -24,6 +25,7 @@ const getArg = (name, def) => {
 };
 const PORT = Number(getArg('port', 4173));
 const URL_OVERRIDE = getArg('url', null);
+const DATA_URL = getArg('data-url', null);   // app data root (HF / institute storage)
 const HEADED = !!getArg('headed', false);
 const SLOW = Number(getArg('slow', 0));
 const OUT = path.join(root, 'smoke-artifacts');
@@ -73,6 +75,12 @@ async function main() {
     server.stdout.on('data', (b) => process.env.DEBUG && process.stdout.write(b));
     server.stderr.on('data', (b) => process.env.DEBUG && process.stderr.write(b));
     baseUrl = `http://localhost:${PORT}/`;
+  }
+  // run the whole suite against a remote data root: every payload fetch (manifest,
+  // PAE image + LUT decode, PDB, MSA) then goes to that host instead of /data
+  if (DATA_URL) {
+    baseUrl = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}dataBaseUrl=${encodeURIComponent(DATA_URL)}`;
+    console.log(`· data root: ${DATA_URL}`);
   }
   if (!(await waitForHttp(baseUrl))) {
     console.error(`server did not answer on ${baseUrl}`);
