@@ -215,9 +215,9 @@ def gitattributes_text(remote: str | None) -> str:
         base = open(remote, encoding="utf-8").read().rstrip("\n")
     if not base.strip():
         base = "# keep binary payloads in Git LFS (Hugging Face)"
-    lines = [base, "", "# ORF1 viewer payload (added by scripts/make_hf_dataset.py)"]
-    lines += EXTRA_LFS
-    return "\n".join(lines) + "\n"
+    have = {ln.strip() for ln in base.splitlines()}
+    extra = [ln for ln in EXTRA_LFS if ln not in have] or ["# (ORF1 LFS patterns already present)"]
+    return "\n".join([base, "", "# ORF1 viewer payload (added by scripts/make_hf_dataset.py)"] + extra) + "\n"
 
 
 PAE_SNIPPET = """import json, urllib.request, numpy as np
@@ -234,7 +234,7 @@ print(m["id"], pae.shape, round(float(pae.max()), 2))
 """
 
 
-def card_text(repo_id: str, code_url: str, prov: dict, stats: dict, arts: dict, csv_name: str) -> str:
+def card_text(repo_id: str, code_url: str, viewer_url: str, prov: dict, stats: dict, arts: dict, csv_name: str) -> str:
     total_bytes = sum(a.get("bytes", 0) for a in arts.values())
     pae_snippet = PAE_SNIPPET.replace(
         "@ROOT@", f"https://huggingface.co/datasets/{repo_id}/resolve/main"
@@ -272,7 +272,8 @@ task_categories:
 static web app can render the 3D model, the predicted aligned error (PAE) matrix and the multiple
 sequence alignment without a server.
 
-* viewer + pipeline code: **{code_url}** (code only — the data lives here)
+* **open the viewer: <{viewer_url}>** (this dataset is its data root)
+* repository — app + pipeline code, no data: **{code_url}**
 * dataset repo: **https://huggingface.co/datasets/{repo_id}**
 * generated **{prov['generatedAt']}** by `scripts/prepare_data.py` (preset `{prov['pipeline']['preset']}`)
 
@@ -297,7 +298,7 @@ Total payload **{human(total_bytes)}**. All payloads are gzip/WebP-lossless wher
 ## Use it from the viewer
 
 ```
-{code_url}/?dataBaseUrl=https://huggingface.co/datasets/{repo_id}/resolve/main
+{viewer_url}/?dataBaseUrl=https://huggingface.co/datasets/{repo_id}/resolve/main
 ```
 
 Every path inside `manifest.json` is relative to that root. Other overrides (see the repo README):
@@ -376,6 +377,8 @@ def main() -> int:
     ap.add_argument("--out", default="hf-dataset", help="staging directory for the Hub upload")
     ap.add_argument("--repo-id", default="ttubiana/HEV-ORF1-models", help="dataset repo id (used in the card)")
     ap.add_argument("--code-url", default="https://github.com/tubiana/tubiana.github.io", help="where the code lives")
+    ap.add_argument("--viewer-url", default="https://tubiana.github.io/ORF1viewer",
+                    help="public URL of the deployed app (subfolder of a user site by default)")
     ap.add_argument("--preset", default="pages", help="prepare_data.py preset used for this payload")
     ap.add_argument("--gitattributes", default=None, help="existing .gitattributes to keep (fetched from the Hub)")
     ap.add_argument("--copy", action="store_true", help="copy instead of hardlink")
@@ -455,7 +458,8 @@ def main() -> int:
     prov = {
         "schema": 1,
         "generatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "dataset": {"repoId": args.repo_id, "rootIsAppDataRoot": True},
+        "dataset": {"repoId": args.repo_id, "rootIsAppDataRoot": True, "viewerUrl": args.viewer_url,
+                    "dataRoot": f"https://huggingface.co/datasets/{args.repo_id}/resolve/main"},
         "code": {"repository": args.code_url, "entrypoint": "scripts/prepare_data.py", "app": "Hepatitis E ORF1 model viewer"},
         "pipeline": {
             "preset": args.preset,
@@ -481,7 +485,7 @@ def main() -> int:
         fh.write(gitattributes_text(args.gitattributes))
 
     with open(os.path.join(out, "README.md"), "w", encoding="utf-8") as fh:
-        fh.write(card_text(args.repo_id, args.code_url, prov, stats, arts, csv_name))
+        fh.write(card_text(args.repo_id, args.code_url, args.viewer_url, prov, stats, arts, csv_name))
 
     # ---- checksums ------------------------------------------------------------
     if not args.no_sums:

@@ -235,6 +235,33 @@ a `.tar.gz` and unpacks it into `public/data` before building).
 > `models_ORF1_files/`, `hf-dataset/` and `stages/`, so the same working tree can
 > be pushed to GitHub and staged for Hugging Face without accidents.
 
+### Publishing into a **subfolder** of an existing Pages site
+
+If the app must live at `https://<user>.github.io/ORF1viewer/` inside an existing
+*user site* repository, **do not push this repository as that repository** — that
+would replace the whole site. A user site is served from the branch root, so the
+built files simply go into a folder of it. `base: './'` keeps every asset URL
+relative, so no per-deployment base path is needed.
+
+```bash
+git clone git@github.com:tubiana/tubiana.github.io.git   # once, anywhere
+scripts/publish_subdir.sh \
+    --site ../tubiana.github.io \
+    --subdir ORF1viewer \
+    --data-url https://huggingface.co/datasets/ttubiana/HEV-ORF1-models/resolve/main \
+    --push
+# → builds (VITE_DATA_BASE_URL baked in), drops dist/data, rsyncs dist/ into
+#   tubiana.github.io/ORF1viewer/, touches .nojekyll, commits ONLY that path,
+#   then pushes. The rest of the site is untouched; commit is ~3.6 MB / 8 files.
+```
+
+`--no-build`, `--strip-data`, `--branch`, `--message` are available; without
+`--push` it commits locally so you can inspect the diff first. Note that `.github/workflows/deploy.yml`
+uses `upload-pages-artifact`, which replaces an **entire** Pages site: keep that
+workflow in a standalone `orf1viewer` repository (it then serves
+`https://<user>.github.io/orf1viewer/` as a project site), never add it to a user
+site repository that also holds other pages.
+
 ## Testing
 
 ```bash

@@ -229,6 +229,26 @@ Pin a reproducible snapshot by adding the revision to the URL, e.g.
 `…/resolve/<sha-or-branch>/` — the Hub serves any commit/branch, so a paper can cite an immutable
 data root.
 
+### …and the app lives in a subfolder of a user site
+
+`https://tubiana.github.io/ORF1viewer/` is a folder of the **user site repository**, which Pages
+serves from the branch root. `base: './'` already makes the build path-agnostic, so nothing in §8
+changes — but the deployment command is different (and `git push`ing this repository *as* that
+repository would replace the whole site):
+
+```bash
+git clone git@github.com:tubiana/tubiana.github.io.git
+scripts/publish_subdir.sh --site ../tubiana.github.io --subdir ORF1viewer \
+    --data-url https://huggingface.co/datasets/ttubiana/HEV-ORF1-models/resolve/main --push
+```
+
+That script drops `dist/data/` (Vite copies `public/` verbatim — 999 MB otherwise), syncs only
+`ORF1viewer/`, adds `.nojekyll`, and commits **only that path** (~3.6 MB). Never add
+`.github/workflows/deploy.yml` to a user-site repository: `upload-pages-artifact` replaces the
+entire site, not one folder. If you prefer CI instead of a local push, make a standalone
+`orf1viewer` repository — the workflow then serves `https://tubiana.github.io/orf1viewer/` as a
+project site.
+
 ---
 
 ## 9. Updating an existing dataset

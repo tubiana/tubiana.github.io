@@ -9,6 +9,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "build:app": "npm run build && rm -rf dist/data",
+    "publish:subdir": "scripts/publish_subdir.sh",
     "prepare:data": "python3 scripts/prepare_data.py",
     "prepare:hf": "python3 scripts/make_hf_dataset.py",
     "upload:hf": "hf upload ttubiana/HEV-ORF1-models hf-dataset . --repo-type dataset --commit-message \"ORF1 viewer payload\"",
