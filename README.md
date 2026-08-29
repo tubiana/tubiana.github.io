@@ -206,18 +206,32 @@ git. Realistic deployments:
   `npm run deploy:gh-pages` (pushes `dist/`, payload included, to `gh-pages`).
   Works, but you are now ~1 GB in a Pages site and every byte counts against
   the 100 GB/month soft bandwidth cap; force-push keeps the branch small.
-* **App on Pages, payload elsewhere (recommended)** — keep the site to a few MB
-  and serve the payload from Zenodo (concept DOI, per-version files), a
-  Hugging Face dataset/repo (`…/resolve/main/…`), R2/S3 or a lab server; point
-  the app at it with `--base-url` (baked in) or `?dataBaseUrl=` / the ⚙ dialog.
+* **App on Pages, payload on Hugging Face (this deployment)** — code lives on
+  GitHub, the ~1 GB payload lives in the dataset
+  [`ttubiana/HEV-ORF1-models`](https://huggingface.co/datasets/ttubiana/HEV-ORF1-models)
+  whose **repo root is this app's data root**. Build the site with
+  `VITE_DATA_BASE_URL=https://huggingface.co/datasets/ttubiana/HEV-ORF1-models/resolve/main`
+  (or override at runtime with `?dataBaseUrl=` / the ⚙ dialog). `dist/` stays ~1 MB.
+  Staging + upload: `npm run prepare:hf` then the staged commands in
+  **[`REPORT-hf-upload.md`](REPORT-hf-upload.md)** (LFS patterns, checksums,
+  provenance, verification, the optional 25 GB raw tier).
   Use `--preset lean` for bandwidth-constrained hosts, `--preset archive` for
   the archival deposit (full-atom PDB + scores JSON included).
+* **Payload on Zenodo / R2 / S3 / a lab server** — same layout, same data-root
+  contract; only the URL changes (`VITE_DATA_BASE_URL`, `?dataBaseUrl=`,
+  `window.__ORF1_DATA_BASE_URL__`, `localStorage['orf1.dataBaseUrl']`).
 * **Local / offline** — `python3 -m http.server` next to `dist/`, or
   `npm run preview`. Nothing leaves the browser.
 
-The CI workflow (`.github/workflows/deploy.yml`) deploys the app and, if the
-repository variable `PAYLOAD_URL` points at a `.tar.gz` of `public/data`,
-restores it into the build first.
+The CI workflow (`.github/workflows/deploy.yml`) deploys the **app only**. Set
+the repository variable `DATA_BASE_URL` to the Hugging Face (or institute)
+data root and it is baked into the build; the legacy `PAYLOAD_URL` variable
+still works if you prefer shipping the payload inside `dist/data/` (it downloads
+a `.tar.gz` and unpacks it into `public/data` before building).
+
+> **Data never goes into git.** `.gitignore` excludes `public/data/`,
+> `models_ORF1_files/`, `hf-dataset/` and `stages/`, so the same working tree can
+> be pushed to GitHub and staged for Hugging Face without accidents.
 
 ## Testing
 
