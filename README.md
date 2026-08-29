@@ -141,10 +141,20 @@ the state does change, but the mounted React tree keeps rendering only the
 `main` region — `.msp-layout-left` never appears (verified headless; Mol*'s own
 expand button does nothing either). The panels are therefore configured **at
 mount time**: ⚙ molstar tears down the plugin and rebuilds it with
-`layout.initial.showControls / showLeftPanel / showSequenceView / showLog` + the
-default `components` (a spec that sets `components: { remoteState: 'none' }`
-outright wipes Mol*'s panel components — spread the defaults). The model reloads,
-which is also why the toggle looks like a blink.
+`layout.initial.showControls` + `regionState` + the default `components` (a spec
+that sets `components: { remoteState: 'none' }` outright wipes Mol*'s panel
+components — spread the defaults). The model reloads, which is also why the
+toggle looks like a blink.
+
+Only the **right** region (Structure Tools: representation/colour, components,
+scene tree) is ever shown — `left` (Home/State) and `top` (sequence view) are
+kept hidden. `regionState` alone isn't enough, though: Mol*'s default
+`controlsDisplay: 'outside'` renders every region *outside* the plugin's own
+box (negative offsets, meant for a Mol* that owns the whole page), which is why
+the sequence view used to sit on top of this app's header and the right panel
+used to render below the viewport, over the MSA drawer. `controlsDisplay:
+'landscape'` keeps every region inside the box instead, which is what makes the
+Structure Tools panel dock properly on the right of the viewport.
 
 `npm run probe:molstar-ui` re-runs the headless check (`?molui=1` mounts the Mol*
 UI even without WebGL — the panels are plain DOM) and prints the rendered regions

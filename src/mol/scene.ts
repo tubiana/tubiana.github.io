@@ -566,6 +566,19 @@ export interface SceneOptions {
   advanced?: boolean;
 }
 
+/**
+ * Region visibility for ⚙ molstar. Only `right` (Structure Tools: representation,
+ * colour, components, scene tree) is ever shown — `left` (Home/State) and `top`
+ * (sequence view) render on top of this app's own header, and `bottom` (log)
+ * isn't wanted here at all. Shared by `createScene` and `setUiAdvanced` so the
+ * mount-time spec and the runtime toggle can never disagree with each other.
+ */
+function ADV_REGION_STATE(on: boolean) {
+  return on
+    ? { left: 'hidden', top: 'hidden', right: 'full', bottom: 'hidden' }
+    : { left: 'hidden', top: 'hidden', right: 'hidden', bottom: 'hidden' };
+}
+
 export async function createScene(container: HTMLElement, opts: SceneOptions = {}): Promise<Scene> {
   if (!hasWebGL2() && !molUiForced()) {
     throw new Error(
@@ -581,16 +594,16 @@ export async function createScene(container: HTMLElement, opts: SceneOptions = {
       initial: {
         isExpanded: false,
         showControls: adv,
-        showLeftPanel: adv,
-        showSequenceView: adv,
-        showLog: adv,
-        isRotated: false,
-        // `right` is where Mol* keeps the scene tools (Quick Styles, Components,
-        // Goals, …) in 5.11; `left` is only Home/State/Help. Keeping it hidden is
-        // exactly why the benchkey "Toggle Controls Panel" icon looked dead.
-        regionState: adv
-          ? { left: 'full', top: 'collapsed', right: 'full', bottom: 'hidden' }
-          : { left: 'hidden', top: 'hidden', right: 'hidden', bottom: 'hidden' },
+        // Mol*'s default `controlsDisplay: 'outside'` renders every panel *outside*
+        // the plugin's own box (negative offsets — meant for a Mol* that owns the
+        // whole page): the sequence/top region ended up over this app's header and
+        // the right/Structure Tools region ended up below the viewport, over the
+        // MSA drawer. `landscape` keeps every region inside 0/0/0/0 of the host.
+        controlsDisplay: 'landscape',
+        // Only the `right` region (Structure Tools: representation/colour/component
+        // editing, the scene tree) is ever shown — `left` (Home/State) and `top`
+        // (sequence view) add chrome this app doesn't want, and `bottom` is the log.
+        regionState: ADV_REGION_STATE(adv),
       },
     },
     // MUST spread the defaults: they carry Mol*'s panel components. The previous
@@ -831,12 +844,8 @@ export function setUiAdvanced(plugin: PluginUIContext, on: boolean) {
     plugin.layout.setProps({
       isExpanded: false,
       showControls: on,
-      regionState: {
-        left: on ? 'full' : 'hidden',
-        top: on ? 'collapsed' : 'hidden',
-        right: 'hidden',
-        bottom: on ? 'full' : 'hidden',
-      },
+      controlsDisplay: 'landscape',
+      regionState: ADV_REGION_STATE(on),
     } as any);
   } catch (e) {
     console.warn('could not toggle the Mol* UI', e);

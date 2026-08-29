@@ -58,26 +58,25 @@ body {
    panel and the viewport. Repositioning the host here instead used to leave it
    with no height at all — the structure simply vanished when the toggle was on. */
 
-/* Advanced mode (⚙ molstar): Mol* lays its regions out absolutely *inside* the
-   host, and its dropdown/popover panels are rendered in that same subtree. Our
-   viewer box is `overflow-hidden` and the header carries `z-30`, while the right
-   panel simply comes later in DOM order — so Mol*'s expanded view and its
-   popovers ended up painted under them. Lift the box and let popovers escape. */
+/* Advanced mode (⚙ molstar): only the `right` region is ever shown (see
+   ADV_REGION_STATE in scene.ts) and its dropdown/popover panels are rendered
+   inside this same subtree, so the box cannot stay `overflow-hidden` (that
+   clipped the tool menus). z-index stays *below* the header's `z-30` so a
+   popover can never paint over it — it can only extend into the analysis
+   panel beside it, which is harmless. */
 .viewer-advanced {
   position: relative;
-  z-index: 60;
+  z-index: 20;
   overflow: visible;
 }
 
-/* NB: no overflow:hidden here — Mol* renders its popover/dropdown panels inside
-   this subtree, and clipping the host is what cut the tool menus off. */
 .viewer-advanced .mol-host {
   border-radius: 0.75rem;
 }
 
 .viewer-advanced .msp-popover-root,
 .viewer-advanced .msp-popover-root .msp-panel {
-  z-index: 70;
+  z-index: 25;
 }
 
 /* ---------------------------------------------------------------- scrollbars  */
@@ -172,12 +171,9 @@ input[type='range']::-moz-range-thumb {
   }
 }
 
-/* ⚙ molstar (advanced) mode: Mol* lays out its own panels; keep them scrollable
-   and out of the way of the viewport's own quick actions. */
-.mol-host.advanced .msp-left-panel-wrapper {
+/* ⚙ molstar (advanced) mode: only the right region (Structure Tools) is shown;
+   keep it scrollable rather than pushing the viewport around. */
+.mol-host.advanced .msp-right-panel-wrapper {
   max-width: 100%;
   overflow: auto;
-}
-.mol-host.advanced .msp-right-panel {
-  pointer-events: none;
 }
