@@ -1,8 +1,41 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { buildDocs, search, SearchHit } from '../lib/search';
+import { ModelEntry } from '../lib/types';
 import { fmt } from '../lib/util';
 import { Spinner } from './ui';
+
+/*
+ * Values in the annotation CSV that carry no information — the search bar should
+ * not show “Unknown” where a real tag exists elsewhere on the entry.
+ */
+const BLANK_META = /^(unknown|unspecified|n\/a|na|none|null|-|—)$/i;
+
+function known(...values: (string | number | undefined | null)[]): string {
+  for (const v of values) {
+    const s = v === null || v === undefined ? '' : String(v).trim();
+    if (s && !BLANK_META.test(s)) return s;
+  }
+  return '—';
+}
+
+/**
+ * Compact metadata line for the model currently on screen: shown as the search-bar
+ * placeholder instead of the bare model id. `genbank` is the accession the manifest
+ * is keyed on (the CSV `genbank` column, first block of the model id), and the CSV
+ * host column falls back to the host tag of the id when it is blank/Unknown.
+ */
+function modelSummary(m: ModelEntry): string {
+  const meta = m.meta ?? {};
+  const len = known(meta.sequence_size, m.csvLength, m.length);
+  return [
+    `genbank: ${known(m.accession, m.id)}`,
+    `genbank_nucl: ${known(meta.genbank_nucl)}`,
+    `host: ${known(meta.host, m.host, meta.generic_hostname)}`,
+    `sequence length: ${len === '—' ? '—' : `${len} aa`}`,
+    `mean pLDDT: ${typeof m.meanPlddt === 'number' && Number.isFinite(m.meanPlddt) ? fmt(m.meanPlddt, 1) : '—'}`,
+  ].join(' | ');
+}
 
 /** Search combobox over all models: prefix / substring / fuzzy + host filter. */
 export function ModelSearch() {
@@ -44,7 +77,7 @@ export function ModelSearch() {
   };
 
   return (
-    <div ref={boxRef} className="relative min-w-0 flex-1">
+    <div ref={boxRef} className="relative min-w-[15rem] flex-1">
       <div className="flex items-center gap-1.5">
         <div className="relative min-w-0 flex-1">
           <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-slate-500">
@@ -74,13 +107,14 @@ export function ModelSearch() {
               }
             }}
             placeholder={
-              current ? current.id : manifest ? `search ${manifest.models.length} models…` : 'loading manifest…'
+              current ? modelSummary(current) : manifest ? `search ${manifest.models.length} models…` : 'loading manifest…'
             }
+            title={current ? modelSummary(current) : undefined}
             spellCheck={false}
             autoComplete="off"
             data-search="model"
             aria-label="search models"
-            className="w-full rounded-md border border-slate-700 bg-slate-900/85 py-1.5 pl-7 pr-16 text-[13px] text-slate-100 outline-none placeholder:text-slate-500 focus:border-sky-600"
+            className="w-full truncate rounded-md border border-slate-700 bg-slate-900/85 py-1.5 pl-7 pr-16 text-[13px] text-slate-100 outline-none placeholder:text-[12px] placeholder:text-slate-500 focus:border-sky-600"
           />
           <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-500">
             {results.length > 0 && query ? `${results.length} hit${results.length > 1 ? 's' : ''}` : 'press /'}

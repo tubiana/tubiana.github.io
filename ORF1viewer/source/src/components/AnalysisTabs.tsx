@@ -14,10 +14,11 @@ import { currentDataUrl } from '../lib/dataSource';
 export function AnalysisTabs() {
   const tab = useStore((s) => s.tab);
   const setTab = useStore((s) => s.setTab);
-  const model = useStore((s) => s.model);
   return (
     <div className="card flex min-h-0 flex-1 flex-col">
-      <div className="flex shrink-0 items-end justify-between gap-2 border-b border-slate-800 px-2 pt-1">
+      {/* the tab strip is the only child: no long model name to squeeze it, so every
+          tab — including “Reference tree” — stays visible at once */}
+      <div className="flex min-w-0 shrink-0 items-end gap-2 border-b border-slate-800 px-2 pt-1">
         <Tabs<TabId>
           value={tab}
           onChange={setTab}
@@ -28,14 +29,6 @@ export function AnalysisTabs() {
             { id: 'tree', label: 'Reference tree' },
           ]}
         />
-        {model && (
-          <span
-            className="hidden shrink-0 pb-1 text-[10.5px] text-slate-500 xl:block"
-            title={model.pdbSourcePath}
-          >
-            {model.pdbSourcePath.split('/').pop()}
-          </span>
-        )}
       </div>
       <div className="min-h-0 flex-1">
         {tab === 'pae' && <PaeMatrixTab />}

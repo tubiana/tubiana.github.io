@@ -87,8 +87,10 @@ export function Tabs<T extends string>({
   value: T;
   onChange: (v: T) => void;
 }) {
+  // wraps instead of scrolling so every tab (incl. “Reference tree”) stays visible
+  // when the right panel is narrow or the split has been dragged
   return (
-    <div role="tablist" className="flex min-w-0 items-center gap-1 overflow-x-auto">
+    <div role="tablist" className="flex min-w-0 flex-wrap items-center gap-1">
       {items.map((it) => (
         <button
           key={it.id}

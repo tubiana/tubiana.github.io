@@ -70,7 +70,7 @@ export function Header() {
 
   return (
     <header className="z-30 flex shrink-0 flex-col gap-1.5 border-b border-slate-800 bg-slate-950/90 px-3 py-2 backdrop-blur">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <div className="flex shrink-0 items-baseline gap-2">
           <span className="text-[15px] font-semibold tracking-tight text-slate-100">Hepatitis E ORF1 model viewer</span>
           <span className="hidden text-[11px] text-slate-500 lg:inline">
@@ -82,9 +82,13 @@ export function Header() {
           <GhostBtn onClick={randomModel} title="jump to a random model">
             ⤨ random
           </GhostBtn>
-          <GhostBtn onClick={() => setSequenceSearchOpen(true)} title="find the closest model from a pasted sequence">
-            🧬 from sequence
-          </GhostBtn>
+          <Btn
+            onClick={() => setSequenceSearchOpen(true)}
+            title="find the closest model from a pasted FASTA / protein sequence"
+            className="btn-accent"
+          >
+            Search model from Fasta Sequence
+          </Btn>
           <GhostBtn onClick={copyLink} title="copy a shareable link to this model/view">
             ⧉ link
           </GhostBtn>

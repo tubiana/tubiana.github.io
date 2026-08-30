@@ -118,6 +118,13 @@ body {
 .btn-ghost:hover {
   @apply border-slate-700 bg-slate-800/60;
 }
+/* accent variant (semi-transparent red) — used by the FASTA sequence search */
+.btn-accent {
+  @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-rose-500/45 bg-rose-600/20 px-2.5 py-1 text-[12px] font-medium text-rose-100 transition-colors;
+}
+.btn-accent:hover:not(:disabled) {
+  @apply border-rose-400/70 bg-rose-600/35;
+}
 .chip {
   @apply inline-flex items-center gap-1 rounded border border-slate-700/70 bg-slate-900/60 px-1.5 py-[1px] text-[11px] text-slate-300;
 }
