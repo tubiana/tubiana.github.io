@@ -23,11 +23,16 @@ export function buildDocs(models: ModelEntry[]): SearchDoc[] {
       meta.Genogroupe ?? '',
     ].filter(Boolean);
     const hay = parts.join(' ').toLowerCase();
+    // accession (genbank protein id) and genbank_nucl let users search by either
+    // id used in the CSV/tree metadata, not just the model id.
+    const extraTokens = [m.accession, meta.genbank_nucl ?? '']
+      .filter(Boolean)
+      .flatMap((v) => v.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean));
     return {
       id: m.id,
       lower: m.id.toLowerCase(),
       hay,
-      tokens: m.id.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean),
+      tokens: [...m.id.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean), ...extraTokens],
       index,
     };
   });

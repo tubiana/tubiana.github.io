@@ -1,8 +1,11 @@
 /**
  * ICTV Hepeviridae reference phylogeny: Newick parsing + the species/genus
  * annotations shown in the ICTV report figure (ictv.global/report/chapter/hepeviridae),
- * which are not encoded in the tree file itself.
+ * which are not encoded in the tree file itself. The species/genus/colour lookup
+ * lives in `ictv_taxonomy.csv` (same folder) so it can be edited without touching
+ * this file, e.g. if the reference tree changes later.
  */
+import taxonomyCsv from './ictv_taxonomy.csv?raw';
 
 export interface TreeNode {
   name: string | null; // leaf label (e.g. "M73218_hepatitis_E_virus_1a"), null for internal nodes
@@ -76,52 +79,36 @@ export interface TaxonInfo {
 const UNASSIGNED: TaxonInfo = { species: null, genus: null, color: '#e5e7eb' };
 
 /**
- * Species / genus / dot-colour lookup, transcribed from the ICTV Hepeviridae
- * report figure (OPSR.Hepe_.Fig5_.v4-01.png) since the .tree file only carries
- * leaf names and bootstrap values. Keyed by the leaf's genbank_nucl accession.
+ * Species / genus / dot-colour lookup, parsed from `ictv_taxonomy.csv` (transcribed
+ * from the ICTV Hepeviridae report figure, OPSR.Hepe_.Fig5_.v4-01.png, since the
+ * .tree file only carries leaf names and bootstrap values). Keyed by the leaf's
+ * genbank_nucl accession. Edit the CSV file to add/change entries, e.g. if the
+ * reference tree is updated later — no code changes needed.
  */
-export const ICTV_TAXONOMY: Record<string, TaxonInfo> = {
-  M73218: { species: 'Paslahepevirus balayani', genus: 'Paslahepevirus', color: '#e11d2f' },
-  KX578717: { species: 'Paslahepevirus balayani', genus: 'Paslahepevirus', color: '#e11d2f' },
-  AB602441: { species: 'Paslahepevirus balayani', genus: 'Paslahepevirus', color: '#e11d2f' },
-  AB573435: { species: 'Paslahepevirus balayani', genus: 'Paslahepevirus', color: '#e11d2f' },
-  AB197673: { species: 'Paslahepevirus balayani', genus: 'Paslahepevirus', color: '#e11d2f' },
-  KJ496143: { species: 'Paslahepevirus balayani', genus: 'Paslahepevirus', color: '#e11d2f' },
-  AF082843: { species: 'Paslahepevirus balayani', genus: 'Paslahepevirus', color: '#e11d2f' },
-  KX387866: { species: 'Paslahepevirus balayani', genus: 'Paslahepevirus', color: '#e11d2f' },
-  KF951328: { species: 'Paslahepevirus alci', genus: 'Paslahepevirus', color: '#d946ef' },
-  KR905549: UNASSIGNED, // tree shrew HEV — unclassified in the ICTV figure
+function parseTaxonomyCsv(text: string): Record<string, TaxonInfo> {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  const table: Record<string, TaxonInfo> = {};
+  if (!lines.length) return table;
+  const header = lines[0].split(';');
+  const col = (name: string) => header.indexOf(name);
+  const iAcc = col('accession');
+  const iSpecies = col('species');
+  const iGenus = col('genus');
+  const iColor = col('color');
+  for (let li = 1; li < lines.length; li++) {
+    const parts = lines[li].split(';');
+    const accession = parts[iAcc];
+    if (!accession) continue;
+    const species = parts[iSpecies]?.trim() || null;
+    const genus = parts[iGenus]?.trim() || null;
+    const color = parts[iColor]?.trim() || UNASSIGNED.color;
+    table[accession] = { species, genus, color };
+  }
+  return table;
+}
 
-  KM516906: { species: 'Rocahepevirus ratti', genus: 'Rocahepevirus', color: '#1d4ed8' },
-  JN167538: { species: 'Rocahepevirus ratti', genus: 'Rocahepevirus', color: '#1d4ed8' },
-  AB847307: { species: 'Rocahepevirus ratti', genus: 'Rocahepevirus', color: '#1d4ed8' },
-  JX120573: { species: 'Rocahepevirus ratti', genus: 'Rocahepevirus', color: '#1d4ed8' },
-  LC549186: { species: 'Rocahepevirus ratti', genus: 'Rocahepevirus', color: '#1d4ed8' },
-  LC057247: { species: 'Rocahepevirus ratti', genus: 'Rocahepevirus', color: '#1d4ed8' },
-  AB890374: { species: 'Rocahepevirus ratti', genus: 'Rocahepevirus', color: '#1d4ed8' },
-  KY432900: { species: null, genus: 'Rocahepevirus', color: '#e5e7eb' },
-  KY432903: { species: null, genus: 'Rocahepevirus', color: '#e5e7eb' },
-  MG021328: { species: null, genus: 'Rocahepevirus', color: '#e5e7eb' },
-  KY432901: { species: 'Rocahepevirus eothenomi', genus: 'Rocahepevirus', color: '#7dd3fc' },
-  KY432904: { species: 'Rocahepevirus eothenomi', genus: 'Rocahepevirus', color: '#7dd3fc' },
-  KY432905: { species: 'Rocahepevirus eothenomi', genus: 'Rocahepevirus', color: '#7dd3fc' },
-  KY432902: { species: 'Rocahepevirus eothenomi', genus: 'Rocahepevirus', color: '#7dd3fc' },
-  KU670940: { species: 'Rocahepevirus eothenomi', genus: 'Rocahepevirus', color: '#7dd3fc' },
-  MK192405: { species: 'Rocahepevirus eothenomi', genus: 'Rocahepevirus', color: '#7dd3fc' },
-  KY432899: { species: null, genus: 'Rocahepevirus', color: '#e5e7eb' },
+export const ICTV_TAXONOMY: Record<string, TaxonInfo> = parseTaxonomyCsv(taxonomyCsv);
 
-  KX513953: { species: 'Chirohepevirus eptesici', genus: 'Chirohepevirus', color: '#22c55e' },
-  JQ001749: { species: 'Chirohepevirus eptesici', genus: 'Chirohepevirus', color: '#22c55e' },
-  MW249011: { species: 'Chirohepevirus desmodi', genus: 'Chirohepevirus', color: '#86efac' },
-  KJ562187: { species: 'Chirohepevirus rhinolophi', genus: 'Chirohepevirus', color: '#166534' },
-
-  KX589065: { species: 'Avihepevirus egretti', genus: 'Avihepevirus', color: '#f97316' },
-  MG737712: { species: 'Avihepevirus magniiecur', genus: 'Avihepevirus', color: '#eab308' },
-  AY535004: { species: 'Avihepevirus magniiecur', genus: 'Avihepevirus', color: '#eab308' },
-  JN597006: { species: 'Avihepevirus magniiecur', genus: 'Avihepevirus', color: '#eab308' },
-  MK050107: { species: 'Avihepevirus magniiecur', genus: 'Avihepevirus', color: '#eab308' },
-  AM943646: { species: 'Avihepevirus magniiecur', genus: 'Avihepevirus', color: '#eab308' },
-};
 
 export function taxonOf(accession: string): TaxonInfo {
   return ICTV_TAXONOMY[accession] ?? UNASSIGNED;

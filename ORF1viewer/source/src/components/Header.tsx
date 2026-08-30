@@ -39,6 +39,7 @@ export function Header() {
   const setRepr = useStore((s) => s.setRepr);
   const status = useStore((s) => s.status);
   const pae = useStore((s) => s.pae);
+  const setSequenceSearchOpen = useStore((s) => s.setSequenceSearchOpen);
   const setHelpOpen = useStore((s) => s.setHelpOpen);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
   const downloadCurrent = useStore((s) => s.downloadCurrent);
@@ -80,6 +81,9 @@ export function Header() {
         <div className="flex shrink-0 items-center gap-1">
           <GhostBtn onClick={randomModel} title="jump to a random model">
             ⤨ random
+          </GhostBtn>
+          <GhostBtn onClick={() => setSequenceSearchOpen(true)} title="find the closest model from a pasted sequence">
+            🧬 from sequence
           </GhostBtn>
           <GhostBtn onClick={copyLink} title="copy a shareable link to this model/view">
             ⧉ link

@@ -267,19 +267,9 @@ export function PhylogenyTab() {
                     className={isHighlighted ? 'fill-sky-200' : 'fill-slate-300'}
                     style={{ font: isHighlighted ? '600 11px system-ui' : '11px system-ui' }}
                   >
+                    {isHighlighted ? '▶ ' : ''}
                     {leaf.node.name ? displayLeafLabel(leaf.node.name) : ''}
                   </text>
-                  {isHighlighted && (
-                    <text
-                      x={labelX + LABEL_W - 4}
-                      y={3.5}
-                      textAnchor="end"
-                      className="fill-sky-300"
-                      style={{ font: '600 10px system-ui' }}
-                    >
-                      ◀ this model
-                    </text>
-                  )}
                 </g>
               );
             })}

@@ -17,6 +17,7 @@ import { parseClustal } from '../lib/msa';
 import { msaWorker } from '../lib/rpcWorker';
 import { fetchBytes, fetchText, bytesToText, debounce, gunzipBlob, lsGet, lsSet } from '../lib/util';
 import { ClusterRow, parseClusters, parseNewick, TreeNode } from '../lib/tree';
+import { FastaRecord, findClosestSequence, parseFasta } from '../lib/fastaSearch';
 
 export type ColorMode = 'plddt' | 'plddtSmooth' | 'domain' | 'chain' | 'uniform';
 export type ReprKind =
@@ -83,6 +84,11 @@ interface AppState {
   /** seq_id -> cluster/leaf assignment, from metadata/ICTV_ORF1s_clusters.csv */
   clusters: Map<string, ClusterRow> | null;
 
+  /** reference sequences for "search model from sequence" (loaded lazily on first use) */
+  fastaLibrary: FastaRecord[] | null;
+  fastaLibraryStatus: LoadPhase;
+  sequenceSearchOpen: boolean;
+
   // ---- view options ----------------------------------------------------
   colorMode: ColorMode;
   repr: ReprKind;
@@ -140,6 +146,9 @@ interface AppState {
   downloadCurrent: (kind: 'pdb' | 'pdbFull' | 'paeImage') => Promise<void>;
   loadMsa: () => Promise<void>;
   loadTree: () => Promise<void>;
+  loadFastaLibrary: () => Promise<void>;
+  setSequenceSearchOpen: (v: boolean) => void;
+  findModelFromSequence: (query: string) => Promise<{ id: string; pctIdentity: number } | null>;
   recomputeResidueMap: () => void;
 }
 
@@ -198,6 +207,10 @@ export const useStore = create<AppState>((set, get) => ({
 
   tree: null,
   clusters: null,
+
+  fastaLibrary: null,
+  fastaLibraryStatus: 'idle',
+  sequenceSearchOpen: false,
 
   colorMode: 'domain',
   repr: 'cartoon',
@@ -268,7 +281,7 @@ export const useStore = create<AppState>((set, get) => ({
       hover: [],
       cursor: null,
       error: s.error && s.error.startsWith('PAE') ? null : s.error,
-      status: { ...emptyStatus, msa: s.msa ? 'ready' : 'idle' },
+      status: { ...emptyStatus, msa: s.msa ? 'ready' : 'idle', tree: s.tree ? 'ready' : 'idle' },
     });
 
     // structure first: it is what the user looks at
@@ -425,6 +438,28 @@ export const useStore = create<AppState>((set, get) => ({
     } catch (e) {
       set({ status: { ...get().status, tree: 'error' }, error: `Reference tree: ${String(e instanceof Error ? e.message : e)}` });
     }
+  },
+
+  loadFastaLibrary: async () => {
+    if (get().fastaLibrary || get().fastaLibraryStatus === 'loading') return;
+    try {
+      set({ fastaLibraryStatus: 'loading' });
+      const text = await fetchText(currentDataUrl('metadata/ORF1s_1178.fasta'));
+      const records = parseFasta(text);
+      set({ fastaLibrary: records, fastaLibraryStatus: 'ready' });
+    } catch (e) {
+      set({ fastaLibraryStatus: 'error', error: `Sequence library: ${String(e instanceof Error ? e.message : e)}` });
+    }
+  },
+
+  setSequenceSearchOpen: (sequenceSearchOpen) => set({ sequenceSearchOpen }),
+
+  findModelFromSequence: async (query) => {
+    await get().loadFastaLibrary();
+    const records = get().fastaLibrary;
+    if (!records) return null;
+    const match = findClosestSequence(query, records);
+    return match ? { id: match.id, pctIdentity: match.pctIdentity } : null;
   },
 
   setPaeView: (patch) => {

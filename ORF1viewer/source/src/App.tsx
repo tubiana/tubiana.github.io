@@ -5,6 +5,7 @@ import { StructurePanel } from './components/StructurePanel';
 import { AnalysisTabs } from './components/AnalysisTabs';
 import { MsaDrawer } from './components/MsaDrawer';
 import { HelpOverlay, SettingsOverlay } from './components/Overlays';
+import { SequenceSearchOverlay } from './components/SequenceSearch';
 import { Btn, ErrorBanner } from './components/ui';
 import { clamp, lsGet, lsSet } from './lib/util';
 
@@ -17,6 +18,8 @@ export function App() {
   const init = useStore((s) => s.init);
   const helpOpen = useStore((s) => s.helpOpen);
   const settingsOpen = useStore((s) => s.settingsOpen);
+  const sequenceSearchOpen = useStore((s) => s.sequenceSearchOpen);
+  const setSequenceSearchOpen = useStore((s) => s.setSequenceSearchOpen);
   const setHelpOpen = useStore((s) => s.setHelpOpen);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
   const toggleMsa = useStore((s) => s.toggleMsa);
@@ -56,6 +59,7 @@ export function App() {
       if (e.key === 'Escape') {
         if (helpOpen) setHelpOpen(false);
         else if (settingsOpen) setSettingsOpen(false);
+        else if (sequenceSearchOpen) setSequenceSearchOpen(false);
         return;
       }
       if (typing) return;
@@ -72,7 +76,7 @@ export function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [helpOpen, settingsOpen, setHelpOpen, setSettingsOpen, toggleMsa, setTab]);
+  }, [helpOpen, settingsOpen, sequenceSearchOpen, setHelpOpen, setSettingsOpen, setSequenceSearchOpen, toggleMsa, setTab]);
 
   // split-pane drag
   useEffect(() => {
@@ -179,6 +183,7 @@ export function App() {
 
       {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} />}
       {settingsOpen && <SettingsOverlay onClose={() => setSettingsOpen(false)} />}
+      {sequenceSearchOpen && <SequenceSearchOverlay onClose={() => setSequenceSearchOpen(false)} />}
     </div>
   );
 }
