@@ -15,7 +15,8 @@ import {
 import { decodePae, recolorPae } from '../lib/paeService';
 import { parseClustal } from '../lib/msa';
 import { msaWorker } from '../lib/rpcWorker';
-import { fetchBytes, bytesToText, debounce, gunzipBlob, lsGet, lsSet } from '../lib/util';
+import { fetchBytes, fetchText, bytesToText, debounce, gunzipBlob, lsGet, lsSet } from '../lib/util';
+import { ClusterRow, parseClusters, parseNewick, TreeNode } from '../lib/tree';
 
 export type ColorMode = 'plddt' | 'plddtSmooth' | 'domain' | 'chain' | 'uniform';
 export type ReprKind =
@@ -27,7 +28,7 @@ export type ReprKind =
   | 'spacefill'
   | 'surface'
   | 'molecularSurface';
-export type TabId = 'accent' | 'pae' | 'plddt';
+export type TabId = 'accent' | 'pae' | 'plddt' | 'tree';
 export type SourceKind = 'pae' | 'plddt' | 'msa' | 'domain' | 'pair';
 
 export interface Selection {
@@ -53,6 +54,7 @@ export interface Status {
   pae: LoadPhase;
   plddt: LoadPhase;
   msa: LoadPhase;
+  tree: LoadPhase;
 }
 
 interface AppState {
@@ -75,6 +77,11 @@ interface AppState {
   msaRow: number;
   pdb: PdbResidues | null;
   status: Status;
+
+  /** ICTV Hepeviridae reference phylogeny (loaded lazily, once, on first visit to the tab) */
+  tree: TreeNode | null;
+  /** seq_id -> cluster/leaf assignment, from metadata/ICTV_ORF1s_clusters.csv */
+  clusters: Map<string, ClusterRow> | null;
 
   // ---- view options ----------------------------------------------------
   colorMode: ColorMode;
@@ -132,6 +139,7 @@ interface AppState {
   applyDataBaseUrl: (base: string | null) => Promise<void>;
   downloadCurrent: (kind: 'pdb' | 'pdbFull' | 'paeImage') => Promise<void>;
   loadMsa: () => Promise<void>;
+  loadTree: () => Promise<void>;
   recomputeResidueMap: () => void;
 }
 
@@ -158,7 +166,7 @@ let modelAbort: AbortController | null = null;
 let nonce = 1;
 let parsedCache: { id: string; text: string; pdb: PdbResidues } | null = null;
 
-const emptyStatus: Status = { structure: 'idle', pae: 'idle', plddt: 'idle', msa: 'idle' };
+const emptyStatus: Status = { structure: 'idle', pae: 'idle', plddt: 'idle', msa: 'idle', tree: 'idle' };
 
 function paeViewOf(s: AppState) {
   return {
@@ -187,6 +195,9 @@ export const useStore = create<AppState>((set, get) => ({
   msaRow: -1,
   pdb: null,
   status: { ...emptyStatus },
+
+  tree: null,
+  clusters: null,
 
   colorMode: 'domain',
   repr: 'cartoon',
@@ -229,7 +240,7 @@ export const useStore = create<AppState>((set, get) => ({
     const id = requested && m.models.some((x) => x.id === requested) ? requested : m.models[0]?.id;
     if (id) await get().setModel(id);
     const tabParam = params.get('tab');
-    if (tabParam === 'accent' || tabParam === 'pae' || tabParam === 'plddt') set({ tab: tabParam });
+    if (tabParam === 'accent' || tabParam === 'pae' || tabParam === 'plddt' || tabParam === 'tree') set({ tab: tabParam });
     const colorParam = params.get('color');
     if (colorParam && ['plddt', 'plddtSmooth', 'domain', 'chain', 'uniform'].includes(colorParam))
       set({ colorMode: colorParam as ColorMode });
@@ -397,6 +408,22 @@ export const useStore = create<AppState>((set, get) => ({
       get().recomputeResidueMap();
     } catch (e) {
       set({ status: { ...get().status, msa: 'error' }, error: `MSA: ${String(e)}` });
+    }
+  },
+
+  loadTree: async () => {
+    if (get().tree || get().status.tree === 'loading') return;
+    try {
+      set({ status: { ...get().status, tree: 'loading' } });
+      const [treeText, clustersText] = await Promise.all([
+        fetchText(currentDataUrl('metadata/ICTV_hepeviridae.tree')),
+        fetchText(currentDataUrl('metadata/ICTV_ORF1s_clusters.csv')),
+      ]);
+      const tree = parseNewick(treeText);
+      const clusters = parseClusters(clustersText);
+      set({ tree, clusters, status: { ...get().status, tree: 'ready' } });
+    } catch (e) {
+      set({ status: { ...get().status, tree: 'error' }, error: `Reference tree: ${String(e instanceof Error ? e.message : e)}` });
     }
   },
 

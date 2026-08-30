@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useStore, type TabId } from '../state/store';
 import { PaeMatrixTab } from './PaeMatrixTab';
 import { PlddtTab } from './PlddtTab';
+import { PhylogenyTab } from './PhylogenyTab';
 import { Badge, Btn, Select, Spinner, Tabs } from './ui';
 import { fmt } from '../lib/util';
 import { currentDataUrl } from '../lib/dataSource';
@@ -24,6 +25,7 @@ export function AnalysisTabs() {
             { id: 'pae', label: 'PAE matrix' },
             { id: 'plddt', label: 'pLDDT & domains' },
             { id: 'accent', label: 'Accentuated PAE' },
+            { id: 'tree', label: 'Reference tree' },
           ]}
         />
         {model && (
@@ -39,6 +41,7 @@ export function AnalysisTabs() {
         {tab === 'pae' && <PaeMatrixTab />}
         {tab === 'plddt' && <PlddtTab />}
         {tab === 'accent' && <AccentuatedTab />}
+        {tab === 'tree' && <PhylogenyTab />}
       </div>
     </div>
   );
