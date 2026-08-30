@@ -5,7 +5,7 @@ import { loadDataBaseUrlOverride, paeCacheInfo, currentDataUrl } from '../lib/da
 import { Btn, ErrorBanner, GhostBtn } from './ui';
 import { fmt, humanBytes } from '../lib/util';
 
-function Modal({
+export function Modal({
   title,
   onClose,
   children,
