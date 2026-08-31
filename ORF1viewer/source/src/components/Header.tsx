@@ -30,6 +30,11 @@ const REPRS: { value: ReprKind; label: string }[] = [
   { value: 'molecularSurface', label: 'Molecular surface (slow)' },
 ];
 
+/* NCBI record pages for the two identifiers of an entry (protein = the `genbank`
+ * accession the manifest is keyed on, nuccore = the `genbank_nucl` CSV column). */
+const ncbiProteinUrl = (id: string) => `https://www.ncbi.nlm.nih.gov/protein/${encodeURIComponent(id)}`;
+const ncbiNuccoreUrl = (id: string) => `https://www.ncbi.nlm.nih.gov/nuccore/${encodeURIComponent(id)}`;
+
 export function Header() {
   const model = useStore((s) => s.model);
   const manifest = useStore((s) => s.manifest);
@@ -59,6 +64,9 @@ export function Header() {
     if (model) url.searchParams.set('model', model.id);
     navigator.clipboard?.writeText(url.toString()).catch(() => {});
   };
+
+  const gbProtein = model?.accession || '';
+  const gbNucl = model?.meta?.genbank_nucl || '';
 
   const randomModel = () => {
     const ms = manifest?.models ?? [];
@@ -211,10 +219,27 @@ export function Header() {
         >
           ↓ PDB{model?.pdbFullPath ? '' : ' (bb)'}
         </Btn>
-        {model?.pdbFullPath && (
-          <Btn onClick={() => void dl('pdb')} title="download the backbone-only model the viewer displays">
-            ↓ bb
-          </Btn>
+        {gbProtein && (
+          <a
+            className="btn whitespace-nowrap"
+            href={ncbiProteinUrl(gbProtein)}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={`NCBI protein record ${gbProtein}`}
+          >
+            ↗ Open genbank protein
+          </a>
+        )}
+        {gbNucl && (
+          <a
+            className="btn whitespace-nowrap"
+            href={ncbiNuccoreUrl(gbNucl)}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={`NCBI nuccore record ${gbNucl}`}
+          >
+            ↗ Open genbank nuccore
+          </a>
         )}
         {dlErr && <span className="text-[10.5px] text-rose-400">download failed: {dlErr}</span>}
         {manifest && (

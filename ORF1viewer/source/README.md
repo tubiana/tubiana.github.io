@@ -197,9 +197,13 @@ hit (`unassigned`, `distinct`), and which residue number / pLDDT it read.
 ## Downloads & the advanced Mol\* view
 
 * **↓ PDB** — the full-atom model of the current entry, decompressed in the browser
-  (`DecompressionStream`) so it opens straight in PyMOL / Coot / Mol\*; **↓ bb** is the
-  backbone file the viewport loads. A payload packed with `--pdb bb` only makes **↓ PDB**
-  fall back to the backbone file and say so in its tooltip.
+  (`DecompressionStream`) so it opens straight in PyMOL / Coot / Mol\*. A payload packed
+  with `--pdb bb` only makes **↓ PDB** fall back to the backbone file the viewport loads
+  and say so in its tooltip.
+* **↗ Open genbank protein / ↗ Open genbank nuccore** — NCBI record of the entry's
+  `genbank` protein accession (`…/protein/<id>`) or its `genbank_nucl` nucleotide
+  accession (`…/nuccore/<id>`), in a new tab; each button shows only when that
+  identifier exists in the annotation CSV.
 * **◍ PNG** (PAE and pLDDT tabs) — composites the canvas layers (matrix + domain strips +
   guides, or the confidence plot) into a single image; **◍ png** in the viewport saves the
   3D scene through Mol\*'s screenshot helper.

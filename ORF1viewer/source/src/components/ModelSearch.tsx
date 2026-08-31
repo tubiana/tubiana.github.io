@@ -37,6 +37,15 @@ function modelSummary(m: ModelEntry): string {
   ].join(' | ');
 }
 
+/** `genbank | genbank_nucl` for a result row — blank identifiers are simply dropped. */
+function idParts(m: ModelEntry): string {
+  const meta = m.meta ?? {};
+  return [m.accession, meta.genbank_nucl]
+    .map((v) => (v ?? '').trim())
+    .filter(Boolean)
+    .join(' | ');
+}
+
 /** Search combobox over all models: prefix / substring / fuzzy + host filter. */
 export function ModelSearch() {
   const manifest = useStore((s) => s.manifest);
@@ -154,7 +163,10 @@ export function ModelSearch() {
                       i === cursor ? 'bg-sky-600/20 text-sky-100' : 'text-slate-300 hover:bg-slate-800/60'
                     } ${current?.id === m.id ? 'border-l-2 border-sky-400' : ''}`}
                   >
-                    <span className="tabular truncate font-medium">{m.id}</span>
+                    <span className="tabular truncate">
+                      <span className="font-medium">{m.id}</span>
+                      {idParts(m) && <span className="text-slate-500"> | {idParts(m)}</span>}
+                    </span>
                     <span className="ml-auto flex shrink-0 items-center gap-2 text-[10.5px] text-slate-400">
                       <span>{m.host}</span>
                       <span className="tabular">{m.length} aa</span>
