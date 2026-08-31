@@ -12,6 +12,7 @@ import {
   resolveDataBaseUrl,
   setDataBaseUrl,
 } from '../lib/dataSource';
+import { NO_ANNOTATIONS, AnnotationsInfo, applyAnnotations, loadAnnotationsText, parseAnnotations } from '../lib/annotations';
 import { decodePae, recolorPae } from '../lib/paeService';
 import { parseClustal } from '../lib/msa';
 import { msaWorker } from '../lib/rpcWorker';
@@ -63,6 +64,8 @@ interface AppState {
   manifest: Manifest | null;
   lut: Float32Array | null;
   manifestStatus: LoadPhase;
+  /** what the live annotation table (see lib/annotations) replaced in the catalogue */
+  annotations: AnnotationsInfo;
   error: string | null;
   baseUrl: string;
   baseUrlHow: string;
@@ -190,6 +193,7 @@ export const useStore = create<AppState>((set, get) => ({
   manifest: null,
   lut: null,
   manifestStatus: 'idle',
+  annotations: NO_ANNOTATIONS,
   error: null,
   baseUrl: '',
   baseUrlHow: '',
@@ -240,9 +244,21 @@ export const useStore = create<AppState>((set, get) => ({
       const { base, how } = await resolveDataBaseUrl();
       set({ baseUrl: base, baseUrlHow: how });
       set({ manifestStatus: 'loading' });
-      const manifest = await loadManifest();
+      // the curated annotation table is fetched alongside the catalogue — not after it,
+      // so a fresh CSV costs no extra round trip and the UI never shows two versions
+      const [manifest, table] = await Promise.all([loadManifest(), loadAnnotationsText()]);
       const lut = new Float32Array(manifest.pae.lut);
-      set({ manifest, lut, manifestStatus: 'ready' });
+      let annotations = NO_ANNOTATIONS;
+      if (table) {
+        try {
+          annotations = applyAnnotations(manifest.models, parseAnnotations(table.text, manifest.domains), table.source);
+        } catch (e) {
+          // a broken table must never take the viewer down: keep the manifest annotations
+          console.warn('annotation table ignored', e);
+        }
+      }
+      // new object identity: everything memoised on `manifest` sees the patched entries
+      set({ manifest: { ...manifest }, lut, manifestStatus: 'ready', annotations });
     } catch (e) {
       set({ manifestStatus: 'error', error: String(e instanceof Error ? e.message : e) });
       return;

@@ -115,8 +115,10 @@ def find_csv(source_dir: str, explicit: str | None) -> str:
         raise SystemExit(
             f"no annotation CSV found in {source_dir!r} — pass --csv path/to/annotation.csv"
         )
-    # prefer a reviewed annotation file when several are present
-    cands.sort(key=lambda p: (("reviewed" not in os.path.basename(p).lower()), len(p), p))
+    # prefer a reviewed annotation file, and among those the most recently written one:
+    # the curated CSV is re-uploaded under a new name ("..._renumbered") and name order
+    # cannot tell which is current ("_111724" sorts before "_renumbered").
+    cands.sort(key=lambda p: (("reviewed" not in os.path.basename(p).lower()), -os.path.getmtime(p)))
     return cands[0]
 
 

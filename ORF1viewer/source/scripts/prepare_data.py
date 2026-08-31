@@ -263,7 +263,11 @@ def parse_domain_csv(source: str, explicit: str | None):
     if not path:
         cands = sorted(glob.glob(os.path.join(source, "*.csv")))
         ann = [c for c in cands if re.search(r"reviewed|dataset|domain", os.path.basename(c), re.I)]
-        path = (ann or cands or [""])[0]
+        pool = ann or cands
+        # the curated CSV is re-uploaded under a new name ("..._renumbered"); name order
+        # cannot tell which is current ("_111724" sorts before "_renumbered"), so the most
+        # recently written file wins. Pass --csv to be explicit.
+        path = max(pool, key=os.path.getmtime) if pool else ""
     if not path or not os.path.exists(path):
         return {}, "", {}
     with open(path, newline="", encoding="utf-8-sig") as fh:

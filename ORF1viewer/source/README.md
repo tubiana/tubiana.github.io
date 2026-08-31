@@ -24,6 +24,7 @@ From this `source` directory, install dependencies once and use:
 npm ci
 npm run dev          # local development server
 npm run build:site   # type-check, build, and replace only ../index.html + ../assets
+npm run deploy       # the same, then `git add` the result (stages only — never commits)
 npm run smoke        # test the most recent build
 ```
 
@@ -31,6 +32,30 @@ npm run smoke        # test the most recent build
 viewer loads its model data from Hugging Face by default. Commit the updated
 `ORF1viewer/` directory to publish the new version. To work with a different
 payload temporarily, use the settings dialog or `?dataBaseUrl=...`.
+
+### Why the built files are named `index-y_MTWPsM.js`
+
+That suffix is a **content hash**, added by Vite/Rollup, and it is the standard
+way to ship a web app. A browser (and GitHub's CDN) caches a script under its URL:
+with a fixed name like `index.js`, a visitor who still holds yesterday's copy would
+load it next to a new `index.html` — the classic half-updated app that breaks in ways
+that only ever happen to other people. With the hash in the name the URL changes
+exactly when the bytes change, so old and new builds can never mix, and the scripts
+can be cached hard. `index.html` itself is rewritten by the build, so a name is never
+maintained by hand.
+
+The consequence for git is that each build *renames* the assets. `scripts/sync-site.mjs`
+deletes the previous copy first, so nothing stale is left behind, and one command stages
+the whole set of renames — plain `git add <file>` is what makes it feel tedious:
+
+```bash
+npm run deploy                       # build + sync + git add ..
+#  or, after a manual build:  git add -A ORF1viewer   (or git commit -aR after sync)
+```
+
+If you would rather have plain `assets/index.js` names, `STABLE_ASSET_NAMES=1 npm run build:site`
+does that (see `vite.config.ts`) — at the price of visitors possibly running a cached bundle
+for a while. Keeping the hash is the recommendation.
 
 ```bash
 python3 scripts/prepare_data.py --selfcheck 5   # build public/data  (~1 min, 24 workers)
@@ -63,10 +88,12 @@ without losing the information that matters for visual inspection:
 
 **Domains are never computed.** The ranges used everywhere (3D colouring, the axis
 strips, the dotted boundary guides, the pLDDT table, the domain × domain PAE table) are
-the `border_*` columns of `dataset_ORF1s_1178_reviewed_111724.csv`, verbatim, sorted by
+the `border_*` columns of the curated annotation CSV, verbatim, sorted by
 start position — there is no segmentation, merging or clustering step anywhere in the
 pipeline (checked: 0 mismatches against the CSV over 120 randomly sampled models).
-Accessions missing from the CSV get no domains, and nothing is invented for them.
+Accessions missing from the CSV get no domains, and nothing is invented for them. See
+[Keeping the annotations current](#keeping-the-annotations-current) for which CSV is used
+and how a new one reaches the browser.
 `HVR` is a hypervariable stretch rather than a domain, so it is excluded from the
 **domains** count (it stays annotated and coloured everywhere else).
 
@@ -88,6 +115,26 @@ models_ORF1_files/
   *.csv    (semicolon-delimited domain table: border_MetY, FABD-like, HVR, domX, Hel, RdRp)
   *.aln    (MAFFT “CLUSTAL format” alignment, names truncated to 10 chars)
 ```
+
+### Keeping the annotations current
+
+The curated annotation CSV is the source of truth for domains and per-model metadata, and
+it is also read **by the running app** (`src/lib/annotations.ts`): the catalogue is patched
+with it at load time, in parallel with fetching `manifest.json`. So refreshing the
+annotations is *upload the CSV to the dataset, reload the page* — no payload regeneration,
+no rebuild, and the 3D colouring, the per-domain MSA colouring, the domain tables and the
+search-bar summary all follow. Nothing blocks on it either: if the table is missing,
+unreachable or unreadable the manifest's own annotations are used, and the footer says
+which of the two is in effect (`annotation table 1176/1178 (…)`).
+
+| | |
+| --- | --- |
+| table in use | `metadata/dataset_ORF1s_1178_reviewed_renumbered.csv` (`ANNOTATIONS_CSV`) |
+| point elsewhere for one page load | `?annotations=metadata/other.csv`, or a full `https://…` URL |
+| format | `;`- or `,`-delimited, header row 1, CRLF/UTF-8-BOM tolerant, `"quoted; fields"` honoured, `border_<Domain>` = `(start-end)`, accession column `genbank`/`uniprot`/`accession`/`id` |
+| new domain column | appears with the manifest palette colour, grey (`#8b93a7`) if the palette does not know it |
+| accession with no row | keeps the manifest annotation — a partly updated table is never a regression |
+| when the payload *is* regenerated | `prepare_data.py`/`make_hf_dataset.py` auto-detect picks the most recently written reviewed CSV (name order cannot tell `_111724` from `_renumbered`); pass `--csv` to be explicit |
 
 Filenames are dynamic (rank, model number and seed differ per entry), so they
 are discovered at runtime: rank-1 wins, otherwise the first file in

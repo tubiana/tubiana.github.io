@@ -14,6 +14,7 @@ export function App() {
   const baseUrl = useStore((s) => s.baseUrl);
   const baseUrlHow = useStore((s) => s.baseUrlHow);
   const manifestStatus = useStore((s) => s.manifestStatus);
+  const annotations = useStore((s) => s.annotations);
   const error = useStore((s) => s.error);
   const init = useStore((s) => s.init);
   const helpOpen = useStore((s) => s.helpOpen);
@@ -164,6 +165,11 @@ export function App() {
             <span>
               {manifest.counts.models} AlphaFold2 ORF1 models · {manifest.hosts.length} hosts · payload built{' '}
               {manifest.generatedAt.slice(0, 10)}
+            </span>
+            <span title={annotations.source ? annotations.source : 'annotation table not reachable'}>
+              {annotations.source
+                ? `annotation table ${annotations.patched}/${annotations.total} (${annotations.source.split('/').pop()})`
+                : 'annotations from manifest copy (?annotations=… to point elsewhere)'}
             </span>
             <span>
               PAE = lossless 8-bit image + manifest LUT (<span className="text-slate-500">{manifest.pae.lutName}</span>, ≤
