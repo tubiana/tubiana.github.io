@@ -7,13 +7,14 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
+import { DomainRange } from '../lib/types';
 import { GhostBtn, Select, Spinner, Toggle } from './ui';
 import { clamp } from '../lib/util';
 
 const LABEL_W = 138;
 const RULER_H = 20;
 
-type ColorMode = 'plain' | 'identity' | 'hydrophobic' | 'turn';
+type ColorMode = 'plain' | 'identity' | 'domain' | 'hydrophobic' | 'turn';
 
 const HYDROPHOBIC: Record<string, string> = {
   A: '#e8a33d', V: '#e8a33d', L: '#e8a33d', I: '#e8a33d', M: '#e8a33d', F: '#e8a33d', W: '#e8a33d', C: '#e8a33d',
@@ -41,6 +42,7 @@ export function MsaDrawer() {
   const [rowH, setRowH] = useState(13);
   const [mode, setMode] = useState<ColorMode>('identity');
   const [showQuery, setShowQuery] = useState(true);
+  const [pinModel, setPinModel] = useState(true);
   const [onlyConserved, setOnlyConserved] = useState(0);
   const [scrollTop, setScrollTop] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
@@ -78,13 +80,48 @@ export function MsaDrawer() {
     [residueMap, msa, queryRow]
   );
 
+  /** fixed row at the top showing the loaded model's own sequence (not scrolled) */
+  const pinnedH = pinModel && queryRow >= 0 ? rowH : 0;
+
+  /**
+   * Per alignment column: the domain of the *model* residue in that column, so the
+   * alignment can be coloured by domain annotation exactly like the 3D view. Column ↔
+   * residue comes from the same mapping the 3D highlight uses.
+   */
+  const domainAtCol = useMemo<(DomainRange | null)[] | null>(() => {
+    if (!msa) return null;
+    const cols: (DomainRange | null)[] = new Array(msa.columns).fill(null);
+    const domains = model?.domains ?? [];
+    if (!domains.length) return cols;
+    const row = queryRow >= 0 ? msa.rows[queryRow] : '';
+    let n = 0;
+    for (let c = 0; c < msa.columns; c++) {
+      let res: number;
+      if (residueMap) res = residueMap.colToRes[c];
+      else {
+        const ch = row[c];
+        const ungapped = !!ch && ch !== '-' && ch !== '.' && ch !== '?';
+        if (ungapped) n++;
+        res = ungapped ? n : -1;
+      }
+      if (res > 0) cols[c] = domains.find((d) => res >= d.start && res <= d.end) ?? null;
+    }
+    return cols;
+  }, [msa, residueMap, queryRow, model]);
+
   // viewport size
   useEffect(() => {
     const el = wrapRef.current;
     if (!el || !msaOpen) return;
     const measure = () => {
-      const r = el.getBoundingClientRect();
-      setViewport({ w: Math.max(0, Math.floor(r.width) - 14), h: Math.max(0, Math.floor(r.height) - RULER_H) });
+      // Measure the canvas *holder* (the flex item the absolutely positioned canvas fills),
+      // and give the canvas exactly that integer size: if the bitmap and the CSS box differ
+      // the drawing is scaled, and the column/row hit tests then drift away from the pixels
+      // (letters and highlighted column end up one off). Measuring the canvas itself would
+      // be self-referential once its size is set from the measurement.
+      const target = canvasRef.current?.parentElement ?? el;
+      const r = target.getBoundingClientRect();
+      setViewport({ w: Math.max(0, Math.floor(r.width)), h: Math.max(0, Math.floor(r.height)) });
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -112,22 +149,40 @@ export function MsaDrawer() {
     ctx.fillStyle = '#080c12';
     ctx.fillRect(0, 0, viewport.w, viewport.h);
     const seqW = viewport.w - LABEL_W;
-    const drawH = viewport.h - RULER_H;
+    const drawH = viewport.h - RULER_H - pinnedH;
     const firstRow = Math.max(0, Math.floor(scrollTop / rowH));
     const lastRow = Math.min(nRows, Math.ceil((scrollTop + drawH) / rowH) + 1);
     const firstCol = Math.max(0, Math.floor(scrollLeft / baseW));
     const lastCol = Math.min(nCols, Math.ceil((scrollLeft + seqW) / baseW) + 1);
-    const font = `${Math.max(8, rowH - 3)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+    /*
+     * A monospace glyph is usually *wider* than one column (e.g. a 17px font with a
+     * 6px column), and `fillText` left-aligns it: the letters then drift and overlap,
+     * so the letter you point at is not the letter of the column you hit. Centring each
+     * glyph in its column — and shrinking the font until it fits — keeps the pixels and
+     * the column the hit test returns in agreement.
+     */
+    const fontFor = (px: number) => `${px}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+    let fontPx = Math.max(8, rowH - 3);
+    ctx.font = fontFor(fontPx);
+    const advance = ctx.measureText('M').width;
+    if (advance > baseW && advance > 0) {
+      fontPx = Math.max(4, Math.floor((fontPx * baseW) / advance));
+      ctx.font = fontFor(fontPx);
+    }
+    const font = fontFor(fontPx);
+    const glyphX = (c: number) => LABEL_W + c * baseW - scrollLeft + baseW / 2;
 
-    // highlighted columns (3D selection + hover)
+    // highlighted columns (3D selection + hover). `hover`/`selection` hold *residue
+    // numbers* (1-based, the model numbering) — the only way to land on the right column
+    // is to convert them through the mapping, never by subtracting one.
     const bands: { s: number; e: number; color: string }[] = [];
-    if (selection) for (const r of selection.ranges) bands.push({ s: r.s - 1, e: r.e - 1, color: 'rgba(56,189,248,.20)' });
-    for (const h of hover) bands.push({ s: h - 1, e: h - 1, color: 'rgba(253,224,71,.16)' });
+    if (selection) for (const r of selection.ranges) bands.push({ s: r.s, e: r.e, color: 'rgba(56,189,248,.20)' });
+    for (const h of hover) bands.push({ s: h, e: h, color: 'rgba(253,224,71,.16)' });
     const map = residueMap;
     for (const b of bands) {
-      const c0 = map ? resRangeToCols(map, b.s, b.e).c0 : b.s;
-      const c1 = map ? resRangeToCols(map, b.s, b.e).c1 : b.e;
-      for (const [s, e] of [[c0, c1]]) {
+      // without a mapping the row is assumed gap-free, so residue n sits on column n-1
+      const range = map ? resRangeToCols(map, b.s, b.e) : { c0: b.s - 1, c1: b.e - 1 };
+      for (const [s, e] of [[range.c0, range.c1]]) {
         const x0 = LABEL_W + s * baseW - scrollLeft;
         const x1 = LABEL_W + (e + 1) * baseW - scrollLeft;
         if (x1 < LABEL_W || x0 > viewport.w) continue;
@@ -136,7 +191,8 @@ export function MsaDrawer() {
       }
     }
 
-    // ruler
+    // ruler (its own baseline: it is drawn in the strip above the rows)
+    ctx.textBaseline = 'top';
     ctx.fillStyle = 'rgba(8,12,18,.96)';
     ctx.fillRect(0, 0, viewport.w, RULER_H);
     ctx.strokeStyle = 'rgba(148,163,184,.25)';
@@ -153,9 +209,10 @@ export function MsaDrawer() {
       if (x < LABEL_W - 24 || x > viewport.w) continue;
       const res = colToRes(c);
       ctx.fillStyle = 'rgba(148,163,184,.85)';
-      ctx.fillText(res ? String(res) : `:${c + 1}`, x + 1, 7);
+      ctx.fillText(res ? String(res) : `:${c + 1}`, x + baseW / 2, 7);
       ctx.fillRect(x, RULER_H - 3, 1, 3);
     }
+    ctx.textAlign = 'left';
     if (queryRow >= 0 && msa.names[queryRow]) {
       ctx.fillStyle = 'rgba(56,189,248,.9)';
       ctx.fillText(`▸ ${msa.names[queryRow]}${residueMap ? ` · ${residueMap.length} aa` : ''}`, 4, 7);
@@ -163,43 +220,42 @@ export function MsaDrawer() {
 
     // sequences
     ctx.font = font;
-    for (let r = firstRow; r < lastRow; r++) {
-      const y = (r - firstRow) * rowH + RULER_H;
-      const isQuery = showQuery && r === queryRow;
-      if (isQuery) {
-        ctx.fillStyle = 'rgba(56,189,248,.10)';
-        ctx.fillRect(0, y, viewport.w, rowH);
-      }
+    ctx.textBaseline = 'middle';
+    const drawRow = (row: string | undefined, name: string, y: number, isQuery: boolean) => {
+      const base = y + rowH / 2;
+      ctx.textAlign = 'left';
       ctx.fillStyle = isQuery ? '#7dd3fc' : 'rgba(203,213,225,.8)';
-      const nm = msa.names[r] ?? '';
-      ctx.fillText(nm.length > 23 ? nm.slice(0, 22) + '…' : nm, 4, y);
+      const nm = name ?? '';
+      ctx.fillText(nm.length > 23 ? nm.slice(0, 22) + '…' : nm, 4, base);
       ctx.strokeStyle = 'rgba(148,163,184,.12)';
       ctx.beginPath();
       ctx.moveTo(LABEL_W - 0.5, y);
       ctx.lineTo(LABEL_W - 0.5, y + rowH);
       ctx.stroke();
-
-      const row = rows[r];
+      if (!row) return;
+      ctx.textAlign = 'center';
       for (let c = firstCol; c < lastCol; c++) {
         const ch = row[c];
         if (!ch) continue;
-        const x = LABEL_W + c * baseW - scrollLeft;
+        const x = glyphX(c);
         if (ch === '-' || ch === '.') {
           if (mode !== 'plain') {
             ctx.fillStyle = 'rgba(100,116,139,.26)';
-            ctx.fillText('·', x, y);
+            ctx.fillText('·', x, base);
           }
           continue;
         }
         const cons = msa.conservation[c];
         if (onlyConserved > 0 && cons * 100 < onlyConserved) {
           ctx.fillStyle = 'rgba(100,116,139,.25)';
-          ctx.fillText(ch, x, y);
+          ctx.fillText(ch, x, base);
           continue;
         }
         if (mode === 'identity') {
           const id = cons;
           ctx.fillStyle = `rgba(${Math.round(228 - 148 * id)},${Math.round(236 - 70 * id)},${Math.round(244)},${0.4 + 0.6 * id})`;
+        } else if (mode === 'domain') {
+          ctx.fillStyle = domainAtCol?.[c]?.color ?? 'rgba(148,163,184,.4)';
         } else if (mode === 'hydrophobic') {
           ctx.fillStyle = HYDROPHOBIC[ch.toUpperCase()] ?? 'rgba(203,213,225,.9)';
         } else if (mode === 'turn') {
@@ -208,8 +264,31 @@ export function MsaDrawer() {
         } else {
           ctx.fillStyle = isQuery ? '#bae6fd' : 'rgba(203,213,225,.85)';
         }
-        ctx.fillText(ch, x, y);
+        ctx.fillText(ch, x, base);
       }
+    };
+
+    for (let r = firstRow; r < lastRow; r++) {
+      const y = (r - firstRow) * rowH + RULER_H + pinnedH;
+      const isQuery = showQuery && r === queryRow;
+      if (isQuery) {
+        ctx.fillStyle = 'rgba(56,189,248,.10)';
+        ctx.fillRect(0, y, viewport.w, rowH);
+      }
+      drawRow(rows[r], msa.names[r] ?? '', y, isQuery);
+    }
+
+    // the loaded model, pinned under the ruler
+    if (pinnedH > 0 && queryRow >= 0) {
+      const y = RULER_H;
+      ctx.fillStyle = 'rgba(56,189,248,.15)';
+      ctx.fillRect(0, y, viewport.w, pinnedH);
+      drawRow(rows[queryRow], `★ ${model?.id ?? msa.names[queryRow] ?? 'model'}`, y, true);
+      ctx.strokeStyle = 'rgba(56,189,248,.5)';
+      ctx.beginPath();
+      ctx.moveTo(0, y + pinnedH - 0.5);
+      ctx.lineTo(viewport.w, y + pinnedH - 0.5);
+      ctx.stroke();
     }
     ctx.strokeStyle = 'rgba(148,163,184,.35)';
     ctx.beginPath();
@@ -218,7 +297,8 @@ export function MsaDrawer() {
     ctx.stroke();
   }, [
     msaOpen, msa, viewport.w, viewport.h, scrollTop, scrollLeft, baseW, rowH, mode,
-    showQuery, onlyConserved, selection, hover, nRows, nCols, queryRow, residueMap, colToRes,
+    showQuery, pinModel, pinnedH, onlyConserved, selection, hover, nRows, nCols, queryRow,
+    residueMap, domainAtCol, colToRes, model,
   ]);
 
   // ------------------------------------------------------- interactions
@@ -240,11 +320,12 @@ export function MsaDrawer() {
       const el = canvasRef.current;
       if (!el) return null;
       const box = el.getBoundingClientRect();
-      const y = clientY - box.top - RULER_H;
+      const y = clientY - box.top - RULER_H - pinnedH;
+      if (y < 0) return queryRow >= 0 ? queryRow : null; // the pinned model row
       const r = Math.floor((scrollTop + y) / rowH);
       return r >= 0 && r < nRows ? r : null;
     },
-    [scrollTop, rowH, nRows]
+    [scrollTop, rowH, nRows, pinnedH, queryRow]
   );
 
   const onWheel = (ev: React.WheelEvent) => {
@@ -317,11 +398,12 @@ export function MsaDrawer() {
           options={[
             { value: 'plain', label: 'plain' },
             { value: 'identity', label: 'identity' },
+            { value: 'domain', label: 'per domain' },
             { value: 'hydrophobic', label: 'hydrophobic' },
             { value: 'turn', label: 'Pro / Gly' },
           ]}
           onChange={(v) => setMode(v as ColorMode)}
-          title="column colouring"
+          title="column colouring — per domain uses the CSV annotation ranges, the same colours as the 3D / PASTRIPO bars"
         />
         <label className="flex items-center gap-1 text-[11px] text-slate-400" title="fade columns below this conservation">
           cons ≥
@@ -332,6 +414,12 @@ export function MsaDrawer() {
           <span className="tabular w-6 text-slate-300">{onlyConserved}%</span>
         </label>
         <Toggle checked={showQuery} onChange={setShowQuery} label="highlight query" />
+        <Toggle
+          checked={pinModel}
+          onChange={setPinModel}
+          label="model seq on top"
+          title="pin the loaded model's own sequence in a fixed row under the ruler"
+        />
         {residueMap && !residueMap.reliable && (
           <span
             className="rounded border border-amber-600/50 bg-amber-600/10 px-1.5 py-[1px] text-[10.5px] text-amber-300"
@@ -345,6 +433,20 @@ export function MsaDrawer() {
             col <b className="tabular ml-1">{hoverCol + 1}</b>
             <span className="ml-2 text-slate-400">res</span>{' '}
             <b className="tabular ml-1">{colToRes(hoverCol) ?? 'gap'}</b>
+            {colToRes(hoverCol) != null && (
+              <>
+                <span className="ml-2 text-slate-400">aa</span>{' '}
+                <b className="tabular ml-1">{msa?.rows[queryRow]?.[hoverCol] ?? '–'}</b>
+              </>
+            )}
+            {domainAtCol?.[hoverCol] && (
+              <>
+                <span className="ml-2 text-slate-400">domain</span>{' '}
+                <b className="ml-1" style={{ color: domainAtCol[hoverCol]!.color }}>
+                  {domainAtCol[hoverCol]!.name}
+                </b>
+              </>
+            )}
           </span>
         )}
         <GhostBtn
@@ -428,7 +530,16 @@ export function MsaDrawer() {
                 source: 'msa',
               });
             }}
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', cursor: 'crosshair' }}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              /* explicit integer size: the bitmap is sized from this box, so CSS 100% of a
+                 fractional parent would scale the drawing and the hit test would disagree
+                 with the pixels (letters off by one column, rows off by one row) */
+              width: viewport.w || '100%',
+              height: viewport.h || '100%',
+              cursor: 'crosshair',
+            }}
           />
         </div>
       </div>
@@ -450,10 +561,27 @@ export function MsaDrawer() {
   );
 }
 
-/** approximate alignment-column window covering a residue range (for highlighting) */
+/**
+ * Alignment-column window covering a residue range (1-based model numbering), used for
+ * highlighting. Residues absent from the mapping (gap in this row, or not modelled) fall
+ * back to the nearest present neighbour instead of collapsing onto `residue - 1`, which
+ * would drift by one column per indel.
+ */
 function resRangeToCols(map: { resToCol: Int32Array; colToRes: Int32Array }, s: number, e: number) {
-  const lo = map.resToCol[s] ?? -1;
-  const hi = map.resToCol[Math.min(e, map.resToCol.length - 1)] ?? -1;
-  if (lo < 0 || hi < 0) return { c0: s - 1, c1: e - 1 };
-  return { c0: lo, c1: hi };
+  const n = map.resToCol.length - 1;
+  const find = (res: number, dir: 1 | -1, guard = 64) => {
+    for (let k = 0; k <= guard; k++) {
+      const r = res + dir * k;
+      if (r < 1 || r > n) break;
+      const c = map.resToCol[r];
+      if (c >= 0) return c;
+    }
+    return -1;
+  };
+  let lo = find(Math.max(1, s), 1);
+  let hi = find(Math.min(e, n), -1);
+  if (lo < 0 && hi < 0) return { c0: s - 1, c1: e - 1 };
+  if (lo < 0) lo = hi;
+  if (hi < 0) hi = lo;
+  return { c0: Math.min(lo, hi), c1: Math.max(lo, hi) };
 }

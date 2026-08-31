@@ -148,6 +148,14 @@ dragging the scale slider stays smooth.
   <5 Å / <12 Å and the pair count in the footer, plus *zoom sel*;
 * *domain×domain PAE* copies the 6×6 mean-PAE matrix as TSV for external use.
 
+**MSA drawer ⇄ 3D** (`M`)
+* hover a column → that residue of the selected model is highlighted in 3D, the toolbar
+  chip shows `col / res / aa / domain`, click selects it (column ↔ residue goes through the
+  same mapping the 3D highlight uses, so indels in the alignment cannot shift it);
+* *model seq on top* pins the loaded model's own row under the ruler while the rest scrolls;
+* *per domain* colours every column by the domain of the model residue in it — the CSV
+  annotation and the palette of the 3D / PASTRIPO bars.
+
 **Robustness:** every artifact load is independent (a missing pLDDT never blanks
 the 3D view), paths in the manifest are always resolved against the data root,
 colours fall back to Mol\* built-ins if a custom theme misbehaves, and without
