@@ -136,6 +136,28 @@ which of the two is in effect (`annotation table 1176/1178 (…)`).
 | accession with no row | keeps the manifest annotation — a partly updated table is never a regression |
 | when the payload *is* regenerated | `prepare_data.py`/`make_hf_dataset.py` auto-detect picks the most recently written reviewed CSV (name order cannot tell `_111724` from `_renumbered`); pass `--csv` to be explicit |
 
+**Rename nothing if you can help it.** What the viewer *displays* — host, organism, strain,
+isolate, domains — comes from this CSV, so a naming fix is a CSV edit. What the CSV cannot
+change is the **file map**: the model id and the artifact paths (`pdb-full/<id>.pdb.gz`, …) live
+only in `manifest.json`, and a file renamed on the server behind its back shows up as
+`Structure: 404`. Treat the stem (`AAA45730.1-human-1691`) as an immutable identifier, not as
+label text.
+
+If files *were* renamed, `scripts/repair_manifest_names.py` re-derives the manifest from the
+files that actually exist (it matches them by accession, which is unique across the corpus) and
+reports anything it cannot resolve:
+
+```bash
+python3 scripts/repair_manifest_names.py                       # dry run: what is broken / renamed
+python3 scripts/repair_manifest_names.py --write --out /tmp/man
+hf upload ttubiana/HEV-ORF1-models /tmp/man/manifest.json    --repo-type dataset
+hf upload ttubiana/HEV-ORF1-models /tmp/man/manifest.json.gz --repo-type dataset
+```
+
+Upload **both** copies: the app tries `manifest.json.gz` first, so a repaired `manifest.json`
+alone changes nothing, and the script warns when the two disagree. Then clear the browser cache —
+the manifest is fetched with the cacheable `force-cache` policy like every other artifact.
+
 Filenames are dynamic (rank, model number and seed differ per entry), so they
 are discovered at runtime: rank-1 wins, otherwise the first file in
 numeric-sort order; the scores JSON is taken from the same seed as the chosen

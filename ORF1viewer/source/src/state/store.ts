@@ -257,8 +257,12 @@ export const useStore = create<AppState>((set, get) => ({
           console.warn('annotation table ignored', e);
         }
       }
+      // The host menu is derived, never taken from `manifest.hosts`: that array is a copy of
+      // information already carried by every entry, and copies rot — a hand-edited manifest
+      // kept "shrew" in the filter long after the last shrew model had been renamed away.
+      const hosts = Array.from(new Set(manifest.models.map((x) => x.host).filter(Boolean))).sort();
       // new object identity: everything memoised on `manifest` sees the patched entries
-      set({ manifest: { ...manifest }, lut, manifestStatus: 'ready', annotations });
+      set({ manifest: { ...manifest, hosts }, lut, manifestStatus: 'ready', annotations });
     } catch (e) {
       set({ manifestStatus: 'error', error: String(e instanceof Error ? e.message : e) });
       return;
