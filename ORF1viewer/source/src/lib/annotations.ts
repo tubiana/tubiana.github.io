@@ -14,10 +14,19 @@ import { DomainRange, ModelEntry } from './types';
 import { fetchText } from './util';
 
 /**
- * The curated annotation table inside the data root: ";"-delimited (CRLF), one row per
- * genbank protein, `border_<Domain>` columns holding "(start-end)". Point at another
- * table for one page load with `?annotations=metadata/other.csv` — or with a complete
- * `https://…` URL, which is fetched as-is.
+ * The curated annotation table read at every load. Path **relative to the data root**
+ * (see `?dataBaseUrl=` / the settings dialog); a full `https://…` URL works here too.
+ *
+ * ─ To point the app at a different table, edit the string below and `npm run deploy`.
+ * ─ For one page load without any rebuild: `?annotations=metadata/other.csv`.
+ * ─ Re-uploading the file under **this** name needs neither — but the fetch uses the
+ *   shared `force-cache` policy (the hub sends no `cache-control`), so a visitor may keep
+ *   the copy already in the browser cache until it expires; clear the cache / hard reload
+ *   to force a fresh read.
+ *
+ * Format is sniffed, not configured: `;` or `,` delimited (whichever the header uses),
+ * optional UTF-8 BOM and CRLF, `"quoted; fields"` honoured, one row per genbank protein,
+ * `border_<Domain>` columns holding "(start-end)". A column you add is a domain you get.
  */
 export const ANNOTATIONS_CSV = 'metadata/dataset_ORF1s_1178_reviewed_renumbered.csv';
 
