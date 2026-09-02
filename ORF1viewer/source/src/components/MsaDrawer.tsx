@@ -7,14 +7,15 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
-import { DomainRange } from '../lib/types';
+import { DomainRange, ModelEntry } from '../lib/types';
 import { GhostBtn, Select, Spinner, Toggle } from './ui';
-import { clamp } from '../lib/util';
+import { clamp, lsGet, lsSet } from '../lib/util';
+import { plddtHex } from '../lib/colormap';
 
-const LABEL_W = 138;
+const LABEL_W = 168;
 const RULER_H = 20;
 
-type ColorMode = 'plain' | 'identity' | 'domain' | 'hydrophobic' | 'turn';
+type ColorMode = 'plain' | 'identity' | 'domain' | 'plddt' | 'hydrophobic' | 'turn';
 
 const HYDROPHOBIC: Record<string, string> = {
   A: '#e8a33d', V: '#e8a33d', L: '#e8a33d', I: '#e8a33d', M: '#e8a33d', F: '#e8a33d', W: '#e8a33d', C: '#e8a33d',
@@ -30,6 +31,9 @@ export function MsaDrawer() {
   const statusMsa = useStore((s) => s.status.msa);
   const residueMap = useStore((s) => s.residueMap);
   const model = useStore((s) => s.model);
+  const manifest = useStore((s) => s.manifest);
+  const setModel = useStore((s) => s.setModel);
+  const plddt = useStore((s) => s.plddt);
   const selection = useStore((s) => s.selection);
   const setSelection = useStore((s) => s.setSelection);
   const setHover = useStore((s) => s.setHover);
@@ -40,10 +44,11 @@ export function MsaDrawer() {
 
   const [baseW, setBaseW] = useState(6);
   const [rowH, setRowH] = useState(13);
-  const [mode, setMode] = useState<ColorMode>('identity');
+  const [mode, setMode] = useState<ColorMode>('domain');
   const [showQuery, setShowQuery] = useState(true);
   const [pinModel, setPinModel] = useState(true);
   const [onlyConserved, setOnlyConserved] = useState(0);
+  const [clickOpensModel, setClickOpensModel] = useState(() => lsGet('orf1.msaClickOpens', '0') === '1');
   const [scrollTop, setScrollTop] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [viewport, setViewport] = useState({ w: 0, h: 0 });
@@ -84,10 +89,61 @@ export function MsaDrawer() {
   const pinnedH = pinModel && queryRow >= 0 ? rowH : 0;
 
   /**
-   * Per alignment column: the domain of the *model* residue in that column, so the
-   * alignment can be coloured by domain annotation exactly like the 3D view. Column ↔
-   * residue comes from the same mapping the 3D highlight uses.
+   * Each alignment row -> the catalogue entry it belongs to, resolved the same way the
+   * store resolves the loaded model's own row (name prefix, "#k" collision suffix). This
+   * lets every row be coloured/named from *its own* model, not just the pinned one.
    */
+  const entryByRow = useMemo<(ModelEntry | null)[]>(() => {
+    if (!msa || !manifest) return [];
+    const out: (ModelEntry | null)[] = new Array(msa.names.length).fill(null);
+    for (const m of manifest.models) {
+      let idx: number | undefined = msa.indexByName[m.msaName];
+      if (idx === undefined) {
+        const key = Object.keys(msa.indexByName).find((k) => k.length >= 6 && m.id.startsWith(k.split('#')[0]));
+        idx = key !== undefined ? msa.indexByName[key] : undefined;
+      }
+      if (idx !== undefined && !out[idx]) out[idx] = m;
+    }
+    return out;
+  }, [msa, manifest]);
+
+  /**
+   * Per row, per alignment column: the domain of *that row's own model* residue in that
+   * column — each sequence keeps its own domain annotation, so switching the loaded model
+   * only moves the highlighted/pinned row, it never recolours the rest of the alignment.
+   * Column -> residue for a row is just the count of non-gap characters up to that column
+   * in the row itself (no indel correction needed: it is the row's own numbering).
+   */
+  const domainForRow = useCallback(
+    (r: number): ((c: number) => DomainRange | null) => {
+      const entry = r === queryRow ? model : entryByRow[r];
+      const domains = entry?.domains ?? [];
+      if (!domains.length) return () => null;
+      if (r === queryRow && residueMap) {
+        return (c: number) => {
+          const res = residueMap.colToRes[c];
+          return res > 0 ? domains.find((d) => res >= d.start && res <= d.end) ?? null : null;
+        };
+      }
+      const row = msa?.rows[r] ?? '';
+      let n = 0;
+      let lastC = -1;
+      return (c: number) => {
+        // columns are asked in increasing order while drawing a row, so this running
+        // counter stays O(columns) instead of O(columns²)
+        if (c <= lastC) n = 0;
+        for (let i = Math.max(0, lastC + 1); i <= c; i++) {
+          const ch = row[i];
+          if (ch && ch !== '-' && ch !== '.' && ch !== '?') n++;
+        }
+        lastC = c;
+        return n > 0 ? domains.find((d) => n >= d.start && n <= d.end) ?? null : null;
+      };
+    },
+    [entryByRow, msa, model, queryRow, residueMap]
+  );
+
+  /** hover-chip readout only, always for the pinned/query row (what 3D highlights) */
   const domainAtCol = useMemo<(DomainRange | null)[] | null>(() => {
     if (!msa) return null;
     const cols: (DomainRange | null)[] = new Array(msa.columns).fill(null);
@@ -221,12 +277,17 @@ export function MsaDrawer() {
     // sequences
     ctx.font = font;
     ctx.textBaseline = 'middle';
-    const drawRow = (row: string | undefined, name: string, y: number, isQuery: boolean) => {
+    const nameFor = (r: number, fallback: string): string => {
+      const entry = r === queryRow ? model : entryByRow[r];
+      const host = entry?.host;
+      return host ? `${fallback} · ${host}` : fallback;
+    };
+    const drawRow = (r: number, row: string | undefined, name: string, y: number, isQuery: boolean) => {
       const base = y + rowH / 2;
       ctx.textAlign = 'left';
       ctx.fillStyle = isQuery ? '#7dd3fc' : 'rgba(203,213,225,.8)';
       const nm = name ?? '';
-      ctx.fillText(nm.length > 23 ? nm.slice(0, 22) + '…' : nm, 4, base);
+      ctx.fillText(nm.length > 30 ? nm.slice(0, 29) + '…' : nm, 4, base);
       ctx.strokeStyle = 'rgba(148,163,184,.12)';
       ctx.beginPath();
       ctx.moveTo(LABEL_W - 0.5, y);
@@ -234,6 +295,8 @@ export function MsaDrawer() {
       ctx.stroke();
       if (!row) return;
       ctx.textAlign = 'center';
+      const domainAt = mode === 'domain' ? domainForRow(r) : null;
+      let plddtN = isQuery ? 0 : -1; // ungapped residue counter, only tracked when needed
       for (let c = firstCol; c < lastCol; c++) {
         const ch = row[c];
         if (!ch) continue;
@@ -245,6 +308,7 @@ export function MsaDrawer() {
           }
           continue;
         }
+        if (isQuery) plddtN++;
         const cons = msa.conservation[c];
         if (onlyConserved > 0 && cons * 100 < onlyConserved) {
           ctx.fillStyle = 'rgba(100,116,139,.25)';
@@ -255,7 +319,12 @@ export function MsaDrawer() {
           const id = cons;
           ctx.fillStyle = `rgba(${Math.round(228 - 148 * id)},${Math.round(236 - 70 * id)},${Math.round(244)},${0.4 + 0.6 * id})`;
         } else if (mode === 'domain') {
-          ctx.fillStyle = domainAtCol?.[c]?.color ?? 'rgba(148,163,184,.4)';
+          ctx.fillStyle = domainAt?.(c)?.color ?? 'rgba(148,163,184,.4)';
+        } else if (mode === 'plddt') {
+          // only the pinned/loaded model carries a per-residue pLDDT array; other rows
+          // fall back to a neutral colour rather than a made-up value
+          if (isQuery && plddt && plddtN >= 1 && plddtN <= plddt.length) ctx.fillStyle = plddtHex(plddt[plddtN - 1]);
+          else ctx.fillStyle = 'rgba(148,163,184,.4)';
         } else if (mode === 'hydrophobic') {
           ctx.fillStyle = HYDROPHOBIC[ch.toUpperCase()] ?? 'rgba(203,213,225,.9)';
         } else if (mode === 'turn') {
@@ -275,7 +344,7 @@ export function MsaDrawer() {
         ctx.fillStyle = 'rgba(56,189,248,.10)';
         ctx.fillRect(0, y, viewport.w, rowH);
       }
-      drawRow(rows[r], msa.names[r] ?? '', y, isQuery);
+      drawRow(r, rows[r], nameFor(r, msa.names[r] ?? ''), y, isQuery);
     }
 
     // the loaded model, pinned under the ruler
@@ -283,7 +352,7 @@ export function MsaDrawer() {
       const y = RULER_H;
       ctx.fillStyle = 'rgba(56,189,248,.15)';
       ctx.fillRect(0, y, viewport.w, pinnedH);
-      drawRow(rows[queryRow], `★ ${model?.id ?? msa.names[queryRow] ?? 'model'}`, y, true);
+      drawRow(queryRow, rows[queryRow], nameFor(queryRow, `★ ${model?.id ?? msa.names[queryRow] ?? 'model'}`), y, true);
       ctx.strokeStyle = 'rgba(56,189,248,.5)';
       ctx.beginPath();
       ctx.moveTo(0, y + pinnedH - 0.5);
@@ -298,7 +367,7 @@ export function MsaDrawer() {
   }, [
     msaOpen, msa, viewport.w, viewport.h, scrollTop, scrollLeft, baseW, rowH, mode,
     showQuery, pinModel, pinnedH, onlyConserved, selection, hover, nRows, nCols, queryRow,
-    residueMap, domainAtCol, colToRes, model,
+    residueMap, domainAtCol, domainForRow, entryByRow, colToRes, model, plddt,
   ]);
 
   // ------------------------------------------------------- interactions
@@ -399,11 +468,12 @@ export function MsaDrawer() {
             { value: 'plain', label: 'plain' },
             { value: 'identity', label: 'identity' },
             { value: 'domain', label: 'per domain' },
+            { value: 'plddt', label: 'per pLDDT' },
             { value: 'hydrophobic', label: 'hydrophobic' },
             { value: 'turn', label: 'Pro / Gly' },
           ]}
           onChange={(v) => setMode(v as ColorMode)}
-          title="column colouring — per domain uses the CSV annotation ranges, the same colours as the 3D / PASTRIPO bars"
+          title="column colouring — per domain uses the CSV annotation ranges (each row its own model's domains); per pLDDT uses the loaded model's confidence, other rows stay neutral"
         />
         <label className="flex items-center gap-1 text-[11px] text-slate-400" title="fade columns below this conservation">
           cons ≥
@@ -419,6 +489,15 @@ export function MsaDrawer() {
           onChange={setPinModel}
           label="model seq on top"
           title="pin the loaded model's own sequence in a fixed row under the ruler"
+        />
+        <Toggle
+          checked={clickOpensModel}
+          onChange={(v) => {
+            setClickOpensModel(v);
+            lsSet('orf1.msaClickOpens', v ? '1' : '0');
+          }}
+          label="click row opens model"
+          title="clicking a sequence row loads its model in the 3D / PAE / pLDDT panels"
         />
         {residueMap && !residueMap.reliable && (
           <span
@@ -522,6 +601,13 @@ export function MsaDrawer() {
               const r = rowFromEvent(ev.clientY);
               const nm = r != null ? msa?.names[r] : undefined;
               const isQuery = r === queryRow;
+              if (clickOpensModel && r != null && !isQuery) {
+                const entry = entryByRow[r];
+                if (entry) {
+                  void setModel(entry.id);
+                  return;
+                }
+              }
               setSelection({
                 ranges: [{ s: res, e: res }],
                 label:
