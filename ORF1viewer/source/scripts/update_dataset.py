@@ -34,15 +34,20 @@ Only rank_001 is ever read: `<ID>_unrelaxed_rank_001_*.pdb` and `<ID>_scores_ran
 Incremental by construction
 ---------------------------
 A model is rebuilt only if one of its artifacts is missing, older than the model's own source
-files, or built with a different PAE table/codec; then only the files whose bytes changed are
-uploaded, because metadata/SHA256SUMS.txt is the ledger of what was uploaded last time.
+files, or built with a different PAE table/codec.
 
-    update_dataset.py cfg.json                  refresh whatever changed, publish
+**Nothing is pushed.** A run stages everything in `outputfolder` and ends by printing the
+`hf upload` command for you to look at the folder and run yourself — the Hub client skips
+files whose bytes are already there, so pushing the whole folder is already a delta.
+`--upload` is there if you would rather have this script do the pushing (it records what it
+sent in metadata/SHA256SUMS.txt, and only that run updates the ledger).
+
+    update_dataset.py cfg.json                  refresh whatever changed, keep it local
     update_dataset.py cfg.json --skip-models    CSV / MSA / tree only, never open a model folder
     update_dataset.py cfg.json --only 'AAA*'    a subset (other manifest entries are kept)
     update_dataset.py cfg.json --force          rebuild everything
-    update_dataset.py cfg.json --no-upload      stage locally, publish later
-    update_dataset.py cfg.json --prune          also delete what nothing references any more
+    update_dataset.py cfg.json --upload         push it yourself instead of printing the command
+    update_dataset.py cfg.json --prune          delete the hub files that nothing references
     update_dataset.py cfg.json --selfcheck 8    decode PAE images back to Å and compare with JSON
 
 Renamed or removed models
@@ -531,11 +536,13 @@ def _worker(task):
 
 
 # ------------------------------------------------------------------ hub
-def hub_api():
+def hub_api(required: bool = False):
     try:
         from huggingface_hub import HfApi
     except ImportError:
-        sys.exit("publishing needs huggingface_hub:  pip install huggingface_hub   then  hf auth login")
+        if required:
+            sys.exit("--upload/--prune need huggingface_hub:  pip install huggingface_hub   then  hf auth login")
+        return None
     return HfApi()
 
 
@@ -604,7 +611,8 @@ def main() -> int:
     ap.add_argument("--force", action="store_true", help="rebuild artifacts even when they are up to date")
     ap.add_argument("--limit", type=int, default=0, help="build at most N models (smoke runs)")
     ap.add_argument("--workers", type=int, default=min(24, os.cpu_count() or 4))
-    ap.add_argument("--no-upload", action="store_true", help="stage locally, do not publish")
+    ap.add_argument("--upload", action="store_true",
+                    help="push with the Hub API instead of only printing the hf upload command")
     ap.add_argument("--prune", action="store_true", help="delete hub files that no manifest entry references")
     ap.add_argument("--selfcheck", type=int, default=0, help="decode N built PAE images and report max |Δ| vs the scores JSON")
     ap.add_argument("--dry-run", action="store_true", help="report what would be built; write and upload nothing")
@@ -760,33 +768,33 @@ def main() -> int:
     write_atomic(os.path.join(out, "provenance.json"), ptxt)
     write_atomic(os.path.join(out, "metadata", "provenance.json"), ptxt)
 
-    # upload only the files whose bytes changed since the previous upload
+    # what changed since the last --upload this script performed (informational otherwise)
     ledger_path = os.path.join(out, LEDGER)
     ledger = read_ledger(ledger_path)
     rels = staged_files(out)
     sums = {rel: sha256(os.path.join(out, rel)) for rel in rels}
     changed = [rel for rel in rels if ledger.get(rel) != sums[rel]]
     print(f"· staged       : {len(rels)} files, {human(sum(os.path.getsize(os.path.join(out, r)) for r in rels))}"
-          f" — {len(changed)} changed since the last upload")
+          f" — {len(changed)} changed since the last --upload")
 
-    api = None
-    if args.no_upload:
-        print("· upload         : skipped (--no-upload); the ledger was not updated")
-    else:
-        api = hub_api()
+    api = hub_api(required=args.upload or args.prune)
+    if args.upload:
         if changed:
-            print(f"· uploading      : {len(changed)} file(s) → {repo}"
-                  + (" (multi-commit)" if len(changed) > 500 else ""))
-            api.upload_folder(repo_id=repo, folder_path=out, repo_type="dataset", allow_patterns=changed,
-                              multi_commits=len(changed) > 500)
+            print(f"· uploading      : {len(changed)} file(s) → {repo}")
+            api.upload_folder(repo_id=repo, folder_path=out, repo_type="dataset", allow_patterns=changed)
         # the ledger describes what is on the hub now, so it is written and pushed last
         write_atomic(ledger_path, "".join(f"{v}  {k}\n" for k, v in sorted(sums.items())).encode())
         api.upload_file(repo_id=repo, path_in_repo=LEDGER, path=ledger_path, repo_type="dataset")
         print(f"· ledger         : {LEDGER} updated ({len(sums)} entries)")
+    else:
+        msg = f"payload {time.strftime('%Y-%m-%d')}"
+        print("· not pushed     : staging is local. Check the folder, then run:")
+        print(f"    hf upload {repo} {out} . --repo-type dataset --exclude errors.txt \\")
+        print(f'        --commit-message "{msg}"')
 
     # anything on the hub that no model references is a leftover from a rename or a deletion
     if api is None:
-        print("· leftovers     : skipped with the upload")
+        print("· leftovers     : not checked (huggingface_hub is not installed)")
     else:
         try:
             remote = set(api.list_repo_files(repo_id=repo, repo_type="dataset"))
@@ -797,7 +805,10 @@ def main() -> int:
         # must never make the whole published payload look like a leftover
         keep = set(rels) | {LEDGER} | KEEP_ON_HF | referenced(manifest)
         orphans = sorted(p for p in remote if p not in keep and not p.startswith(".git"))
-        if orphans:
+        if args.skip_models or args.only:
+            print("· leftovers     : not judged — this run read only part of the catalogue,"
+                  " so it cannot tell dead files from models it never looked at")
+        elif orphans:
             per_dir: dict[str, int] = {}
             for p in orphans:
                 per_dir[os.path.dirname(p) or "/"] = per_dir.get(os.path.dirname(p) or "/", 0) + 1
@@ -812,7 +823,7 @@ def main() -> int:
                     api.delete_files(repo_id=repo, repo_type="dataset", delete_patterns=orphans[i:i + 64])
                 print(f"· pruned         : {len(orphans)} file(s) deleted")
             else:
-                print("                 re-run with --prune to delete them")
+                print(f"                 to delete them: python3 {os.path.basename(__file__)} {args.config} --skip-models --prune")
         else:
             print("· leftovers     : none")
 
