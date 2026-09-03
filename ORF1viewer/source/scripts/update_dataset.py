@@ -806,8 +806,8 @@ def main() -> int:
         keep = set(rels) | {LEDGER} | KEEP_ON_HF | referenced(manifest)
         orphans = sorted(p for p in remote if p not in keep and not p.startswith(".git"))
         if args.skip_models or args.only:
-            print("· leftovers     : not judged — this run read only part of the catalogue,"
-                  " so it cannot tell dead files from models it never looked at")
+            print("· leftovers     : NOT CHECKED, --prune IGNORED — a partial run"
+                  " (--skip-models/--only) knows only part of the catalogue; pruning needs a full one")
         elif orphans:
             per_dir: dict[str, int] = {}
             for p in orphans:
@@ -818,12 +818,15 @@ def main() -> int:
                 print(f"    {p}")
             if len(orphans) > 8:
                 print(f"    … {len(orphans) - 8} more")
-            if args.prune:
+            if args.prune and (not sys.stdin.isatty()
+                               or input(f"                 delete these {len(orphans)} file(s) from {repo}? [y/N] ")
+                               .strip().lower().startswith("y")):
                 for i in range(0, len(orphans), 64):
                     api.delete_files(repo_id=repo, repo_type="dataset", delete_patterns=orphans[i:i + 64])
                 print(f"· pruned         : {len(orphans)} file(s) deleted")
             else:
-                print(f"                 to delete them: python3 {os.path.basename(__file__)} {args.config} --skip-models --prune")
+                print(f"                 to delete them: python3 {os.path.basename(__file__)} {args.config} --prune"
+                      "        (a full run — it rebuilds nothing that is already current)")
         else:
             print("· leftovers     : none")
 
