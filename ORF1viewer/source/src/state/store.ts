@@ -14,7 +14,7 @@ import {
 } from '../lib/dataSource';
 import { NO_ANNOTATIONS, AnnotationsInfo, applyAnnotations, loadAnnotationsText, parseAnnotations } from '../lib/annotations';
 import { decodePae, recolorPae } from '../lib/paeService';
-import { parseClustal } from '../lib/msa';
+import { parseAlignment } from '../lib/msa';
 import { msaWorker } from '../lib/rpcWorker';
 import { fetchBytes, fetchText, bytesToText, debounce, gunzipBlob, lsGet, lsSet } from '../lib/util';
 import { ClusterRow, parseClusters, parseNewick, TreeNode } from '../lib/tree';
@@ -436,7 +436,7 @@ export const useStore = create<AppState>((set, get) => ({
           console.warn('MSA worker failed, parsing on the main thread', e);
         }
       }
-      if (!data) data = parseClustal(bytesToText(bytes));
+      if (!data) data = parseAlignment(bytesToText(bytes));
       set({ msa: data, status: { ...get().status, msa: 'ready' } });
       get().recomputeResidueMap();
     } catch (e) {
@@ -561,7 +561,7 @@ export const useStore = create<AppState>((set, get) => ({
     if (!entry) return;
     const path =
       kind === 'pdb' ? entry.pdbPath : kind === 'pdbFull' ? entry.pdbFullPath ?? entry.pdbPath : entry.accentuatedPaePath;
-    if (!path) throw new Error('this artifact was not built (check the prepare_data.py preset)');
+    if (!path) throw new Error('this artifact was not built (check the dataset build log)');
     const blob = await loadBinaryForDownload(path);
     const { downloadBlob } = await import('../lib/util');
     // '…_full-atom.pdb' (decompressed) rather than '…pdb.gz' so it opens directly

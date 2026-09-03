@@ -4,7 +4,7 @@
  * The payload is an 8-bit single-channel lossless image whose pixel value is an
  * index into a quantisation look-up table (Å) baked into the manifest.  Decoding
  * is exact (PNG/WebP lossless), which we double-check against the (i, j, Å)
- * checkpoints stored by prepare_data.py.
+ * checkpoints stored by scripts/update_dataset.py.
  */
 import { bandTable, colormapTable } from './colormap';
 import { clamp } from './util';

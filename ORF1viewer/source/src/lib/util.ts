@@ -12,7 +12,7 @@ export async function gunzip(buf: ArrayBuffer): Promise<Uint8Array> {
   const anyGlobal = globalThis as any;
   if (typeof anyGlobal.DecompressionStream !== 'function') {
     // Fallback: no gzip support in this browser.  Data can also be served
-    // uncompressed (see prepare_data.py --no-gzip-manifest / non-gz artifacts).
+    // uncompressed (uncompressed artifacts).
     throw new Error(
       'This browser lacks DecompressionStream (gzip). Use Chrome ≥80, Firefox ≥113 or Safari ≥16.4.'
     );

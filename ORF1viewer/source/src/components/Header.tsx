@@ -210,14 +210,10 @@ export function Header() {
         <span className="label">style</span>
         <Select value={repr} options={REPRS} onChange={(v) => setRepr(v)} title="representation" />
         <Btn
-          onClick={() => void dl(model?.pdbFullPath ? 'pdbFull' : 'pdb')}
-          title={
-            model?.pdbFullPath
-              ? 'download the full-atom PDB (decompressed, opens directly in PyMOL/Coot/Mol*)'
-              : 'download the model the viewer uses (backbone atoms — this payload has no full-atom archive; see the README)'
-          }
+          onClick={() => void dl('pdbFull')}
+          title="download the full-atom model (decompressed: opens directly in PyMOL, Coot or Mol*)"
         >
-          ↓ PDB{model?.pdbFullPath ? '' : ' (bb)'}
+          ↓ PDB
         </Btn>
         {gbProtein && (
           <a

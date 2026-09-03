@@ -149,7 +149,7 @@ export function HelpOverlay({ onClose }: { onClose: () => void }) {
           <h3 className="mb-1 text-[13px] font-semibold text-sky-300">How the data is packed</h3>
           <p>
             Each PAE matrix is a <b>1700×1700 float table</b>. Shipping those as JSON would need ~15 GB, so{' '}
-            <code>scripts/prepare_data.py</code> quantises every matrix into an 8-bit index and stores it as a{' '}
+            <code>scripts/update_dataset.py</code> quantises every matrix into an 8-bit index and stores it as a{' '}
             <b>lossless single-channel image</b> (pixel = LUT index, the LUT lives in the manifest). WebP ≈ 500 KB per
             model with a worst-case error of <b>≤1.5 Å</b> (finer/coarser ladders: <code>--preset lean|hifi|archive</code>).
           </p>
@@ -310,7 +310,7 @@ export function SettingsOverlay({ onClose }: { onClose: () => void }) {
           </pre>
           {manifest && (
             <div className="mt-2 text-[11px] text-slate-500">
-              on-disk sizes are reported by <code>prepare_data.py</code>; LUT has {manifest.pae.lut.length} levels from{' '}
+              on-disk sizes are reported by <code>update_dataset.py</code>; LUT has {manifest.pae.lut.length} levels from{' '}
               {manifest.pae.lut[0]} Å to {manifest.pae.lut[manifest.pae.lut.length - 1]} Å.
             </div>
           )}
@@ -325,11 +325,11 @@ export function SettingsOverlay({ onClose }: { onClose: () => void }) {
             <ul className="space-y-1 text-[11.5px]">
               {(
                 [
-                  ['structure (backbone)', currentDataUrl(model.pdbPath)],
+                  ['structure (full-atom)', currentDataUrl(model.pdbPath)],
                   ['PAE image', currentDataUrl(model.paePath)],
                   ['pLDDT', currentDataUrl(model.plddtPath)],
                   ['accentuated PAE', model.accentuatedPaePath ? currentDataUrl(model.accentuatedPaePath) : '—'],
-                  ['full-atom PDB', model.pdbFullPath ? currentDataUrl(model.pdbFullPath) : `${model.pdbSourcePath} (raw tree, not shipped)`],
+                  ['AF2 source file', model.pdbSourcePath],
                 ] as [string, string][]
               ).map(([k, v]) => (
                 <li key={k} className="flex gap-2">

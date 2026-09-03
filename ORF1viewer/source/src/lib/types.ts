@@ -1,4 +1,4 @@
-/** Types mirroring public/data/manifest.json.gz produced by scripts/prepare_data.py */
+/** Types mirroring public/data/manifest.json.gz produced by scripts/update_dataset.py */
 
 export interface DomainRange {
   name: string;
@@ -41,10 +41,12 @@ export interface ModelEntry {
   domains: DomainRange[];
   domainStats: DomainStat[];
 
-  /** structure actually loaded by Mol* (backbone-only .pdb.gz unless only full was built) */
+  /** the structure Mol* loads: full-atom .pdb.gz (payloads that also ship a backbone-only
+   *  reduction point here instead — the viewer does not care which) */
   pdbPath: string;
   scoresPath: string | null;
   accentuatedPaePath: string | null;
+  /** same file as pdbPath in the current payload; older payloads had the full-atom copy separate */
   pdbFullPath: string | null;
   pdbSourcePath: string;
   paePath: string;

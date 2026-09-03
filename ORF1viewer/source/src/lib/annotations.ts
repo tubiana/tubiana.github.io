@@ -32,7 +32,7 @@ export const ANNOTATIONS_CSV = 'metadata/dataset_ORF1s_1178_reviewed_renumbered.
 
 /** colour for a domain the manifest palette does not know (table gained a column) */
 const FALLBACK_COLOR = '#8b93a7';
-/** accepted names for the protein-accession column, same rules as scripts/prepare_data.py */
+/** accepted names for the protein-accession column, same rules as scripts/update_dataset.py */
 const ID_KEYS = ['genbank', 'uniprot', 'accession', 'id'];
 
 export interface Annotation {

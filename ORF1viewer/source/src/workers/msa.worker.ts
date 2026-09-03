@@ -1,5 +1,5 @@
 /** Parses a (gzipped-then-inflated) Clustal alignment off the main thread. */
-import { parseClustal } from '../lib/msa';
+import { parseAlignment } from '../lib/msa';
 
 interface Req {
   reqId: number;
@@ -12,7 +12,7 @@ self.onmessage = async (ev: MessageEvent<Req>) => {
     const t0 = performance.now();
     const text = new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(bytes));
     const tDecode = performance.now();
-    const m = parseClustal(text);
+    const m = parseAlignment(text);
     const tParse = performance.now();
     (self as unknown as Worker).postMessage({
       reqId,

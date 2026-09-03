@@ -58,7 +58,7 @@ export async function resolveDataBaseUrl(): Promise<{ base: string; how: string 
     resolvedHow = 'VITE_DATA_BASE_URL';
     return { base: resolvedBase, how: resolvedHow };
   }
-  // optional pointer file next to the app (written by prepare_data.py --base-url)
+  // optional pointer file next to the app (written by an older payload builder)
   try {
     const txt = await fetchText(new URL('data/base-url.txt', document.baseURI).toString());
     const t = txt.trim();
@@ -136,7 +136,7 @@ export async function loadManifest(signal?: AbortSignal): Promise<Manifest> {
     }
     throw new Error(
       `Could not load the data manifest.  Tried:\n  ${tryUrls.join('\n  ')}\n` +
-        `Reason: ${String(lastErr)}.  Run "python3 scripts/prepare_data.py" or set a data host with ?dataBaseUrl=…`
+        `Reason: ${String(lastErr)}.  Run "python3 scripts/update_dataset.py <config>.json" or set a data host with ?dataBaseUrl=…`
     );
   })();
   return manifestPromise;

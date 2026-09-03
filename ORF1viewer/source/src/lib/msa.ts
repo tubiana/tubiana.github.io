@@ -1,6 +1,6 @@
 /**
- * Clustal (.aln) parsing + alignment-column ↔ model-residue mapping.
- * Used inside a worker for parsing, and on the main thread for mapping.
+ * Alignment parsing (Clustal `.aln` **or** gapped FASTA — sniffed) + alignment-column ↔
+ * model-residue mapping. Used inside a worker for parsing, and on the main thread for mapping.
  */
 
 export interface MsaData {
@@ -12,7 +12,7 @@ export interface MsaData {
   conservation: Float32Array;
   /** per column: number of gapped sequences */
   gaps: Uint16Array;
-  /** name (as written in the file, truncated to 10 chars) -> row index */
+  /** row name as written in the file (full id in FASTA, 10-char truncated in Clustal) -> row index */
   indexByName: Record<string, number>;
 }
 
@@ -105,6 +105,44 @@ export function parseClustal(text: string): MsaData {
     rows[r] = s;
   }
 
+
+  return finishMsa(order, rows, blockWidth);
+}
+
+/** Gapped FASTA, wrapped or not — what MAFFT/LinAliprot write besides the Clustal flavour. */
+export function parseFasta(text: string): MsaData {
+  const order: string[] = [];
+  const chunks = new Map<string, string[]>();
+  let cur: string[] | null = null;
+  for (const line of text.split('\n')) {
+    if (!line) continue;
+    if (line.charCodeAt(0) === 62 /* '>' */) {
+      let name = line.slice(1).trim().split(/\s+/)[0];
+      // a repeated header is a different sequence, not a continuation of the previous one
+      for (let k = 2; chunks.has(name); k++) name = `${line.slice(1).trim().split(/\s+/)[0]}#${k}`;
+      cur = [];
+      order.push(name);
+      chunks.set(name, cur);
+      continue;
+    }
+    if (cur) cur.push(line.trim());
+  }
+  let columns = 0;
+  for (const name of order) columns = Math.max(columns, chunks.get(name)!.join('').length);
+  const rows = order.map((name) => {
+    const s = chunks.get(name)!.join('');
+    return s.length === columns ? s : s + '-'.repeat(columns - s.length);
+  });
+  return finishMsa(order, rows, 0);
+}
+
+/** Clustal or FASTA: the first non-empty character decides, like every other alignment reader. */
+export function parseAlignment(text: string): MsaData {
+  return text.trimStart().charCodeAt(0) === 62 /* '>' */ ? parseFasta(text) : parseClustal(text);
+}
+
+function finishMsa(order: string[], rows: string[], blockWidth: number): MsaData {
+  const columns = rows.reduce((m, r) => Math.max(m, r.length), 0);
   const conservation = new Float32Array(columns);
   const gaps = new Uint16Array(columns);
   const counts = new Int32Array(26);

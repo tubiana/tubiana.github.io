@@ -58,8 +58,8 @@ does that (see `vite.config.ts`) — at the price of visitors possibly running a
 for a while. Keeping the hash is the recommendation.
 
 ```bash
-python3 scripts/prepare_data.py --selfcheck 5   # build public/data  (~1 min, 24 workers)
-npm run dev                                     # http://localhost:5173
+npm run dev                                     # http://localhost:5173 (reads the Hugging Face payload)
+npm run update:data -- configuration_update_dataset.json   # rebuild + republish the dataset
 npm run build && npm run smoke                  # production build + headless smoke test
 ```
 
@@ -73,18 +73,21 @@ AlphaFold ships, per model, a `*_unrelaxed_*_model_X_seed_000.pdb`, a
 web representation is hopeless: one PAE matrix for a 1,691-residue ORF1 is
 2.9 M floats ≈ 12 MB as JSON, **15 GB** for the set.
 
-`scripts/prepare_data.py` repacks the corpus into **1.03 GB** of static files
-without losing the information that matters for visual inspection:
+`scripts/update_dataset.py` repacks the corpus into static files that keep every pixel of
+information the browser needs, and nothing it does not. Per 1691-residue model:
 
-| artifact | what it is | size |
+| artifact | what it is | ≈ size |
 | --- | --- | --- |
-| `pae/<id>.webp` | 8-bit single-channel **lossless** image, pixel = index into a quantisation LUT (Å) — 1700² floats → **490 KB** | 591 MB |
-| `pdb-full/<id>.pdb.gz` | full-atom model, as the pipeline produced it (what **↓ PDB** downloads) | 256 MB |
-| `pdb-bb/<id>.pdb.gz` | backbone-only atoms (N, CA, C, O, OXT) — what the viewport renders | 140 MB |
-| `paeimg/<id>.webp` | accentuated-PAE figure, re-encoded from the pipeline output | 40 MB |
-| `plddt/<id>.bin.gz` | one byte per residue | 1.5 MB |
-| `manifest.json.gz` | catalogue: lengths, scores, domains, paths, integrity checkpoints, LUT | 0.43 MB |
-| `msa.aln.gz` | the alignment | 0.35 MB |
+| `pae/<id>.webp` | 8-bit single-channel **lossless** image, pixel = index into a quantisation LUT (Å) — 1691² floats → **0.85 MB** at `hifi` | 0.85 MB |
+| `pdb-full/<id>.pdb.gz` | the full-atom model: what the viewport renders *and* what **↓ PDB** downloads | 0.2 MB |
+| `paeimg/<id>.webp` | accentuated-PAE figure, re-encoded from the pipeline PNG | 45 KB |
+| `plddt/<id>.bin.gz` | one byte per residue | 1.3 KB |
+| `manifest.json(.gz)` | catalogue: lengths, scores, hosts, domains, paths, integrity checkpoints, LUT, palette | ~0.4 MB |
+| the alignment | gzip, Clustal or FASTA, kept under the name given in the config | ~0.4 MB |
+| `metadata/` | annotation CSV, cluster table, host tree, sequence library, this script, `provenance.json` | ~2 MB |
+
+There is no backbone-only reduction any more: one PDB per model, full atoms, used for both
+the viewport and the download.
 
 **Domains are never computed.** The ranges used everywhere (3D colouring, the axis
 strips, the dotted boundary guides, the pLDDT table, the domain × domain PAE table) are
@@ -97,23 +100,24 @@ and how a new one reaches the browser.
 `HVR` is a hypervariable stretch rather than a domain, so it is excluded from the
 **domains** count (it stays annotated and coloured everywhere else).
 
-Quantisation error is bounded and *stated*: the `balanced` LUT used by the
-default `pages` preset is exact to **≤1.5 Å** (0.5 Å steps to 8 Å, 1 Å to
-16 Å, 2 Å above). And because silent drift is the real risk in a pipeline like
-this, every model carries 24 random `(i, j, Å)` **checkpoints**: after decoding,
-the browser re-checks them and shows `decode ok` — or a red mismatch badge with
-the worst error. `prepare_data.py --selfcheck N` runs the same verification in
-Python (decodes the built image and compares against the JSON scores).
+Quantisation error is bounded and *stated*: the table is chosen by `PAEresolution` in the
+config (currently `hifi` → **≤0.25 Å**), and its name, worst error and values travel in the
+manifest. And because silent drift is the real risk in a pipeline like this, every model
+carries 24 random `(i, j, Å)` **checkpoints**: after decoding, the browser re-checks them and
+shows `decode ok` — or a red mismatch badge with the worst error. `update_dataset.py
+--selfcheck N` runs the same verification in Python (decodes the built image with Pillow and
+compares against the JSON scores).
 
 ## Data pipeline
 
 ```
-models_ORF1_files/
-  <MODEL>/predictions/<MODEL>_unrelaxed_rank_001_…_model_N_seed_000.pdb
-  <MODEL>/predictions/<MODEL>_scores_…_model_N_seed_000.json
-  <MODEL>/predictions/accentuated_pae.png
-  *.csv    (semicolon-delimited domain table: border_MetY, FABD-like, HVR, domX, Hel, RdRp)
-  *.aln    (MAFFT “CLUSTAL format” alignment, names truncated to 10 chars)
+<modelfolder>/
+  <ACCESSION-host-len>/predictions/
+      <MODEL>_unrelaxed_rank_001_…_model_N_seed_000.pdb      ← full atoms
+      <MODEL>_scores_…_model_N_seed_000.json                 ← the PAE matrix lives here
+      accentuated_pae.png
+<dataset csv>   border_<Domain> columns, plus genbank / host / annotation metadata
+<alignment>     Clustal .aln (MAFFT “CLUSTAL format”) or gapped .fasta — sniffed at load
 ```
 
 ### Keeping the annotations current
@@ -134,7 +138,7 @@ which of the two is in effect (`annotation table 1176/1178 (…)`).
 | format | `;`- or `,`-delimited, header row 1, CRLF/UTF-8-BOM tolerant, `"quoted; fields"` honoured, `border_<Domain>` = `(start-end)`, accession column `genbank`/`uniprot`/`accession`/`id` |
 | new domain column | appears with the manifest palette colour, grey (`#8b93a7`) if the palette does not know it |
 | accession with no row | keeps the manifest annotation — a partly updated table is never a regression |
-| when the payload *is* regenerated | `prepare_data.py`/`make_hf_dataset.py` auto-detect picks the most recently written reviewed CSV (name order cannot tell `_111724` from `_renumbered`); pass `--csv` to be explicit |
+| when the payload *is* regenerated | the CSV is whatever `dataset` says in the config — an explicit path, no name guessing. A renamed CSV reaches the browser when the config says so (the app reads `ANNOTATIONS_CSV` from `metadata/`; `?annotations=` overrides it for one page load) |
 
 **Rename nothing if you can help it.** What the viewer *displays* — host, organism, strain,
 isolate, domains — comes from this CSV, so a naming fix is a CSV edit. What the CSV cannot
@@ -158,32 +162,53 @@ Upload **both** copies: the app tries `manifest.json.gz` first, so a repaired `m
 alone changes nothing, and the script warns when the two disagree. Then clear the browser cache —
 the manifest is fetched with the cacheable `force-cache` policy like every other artifact.
 
-Filenames are dynamic (rank, model number and seed differ per entry), so they
-are discovered at runtime: rank-1 wins, otherwise the first file in
-numeric-sort order; the scores JSON is taken from the same seed as the chosen
-PDB. Anything missing degrades to `null` in the manifest instead of crashing.
+Only rank-1 predictions are read (`*_unrelaxed_rank_001_*.pdb` of the lowest
+seed, plus its scores JSON, plus `accentuated_pae.png`); the folder name is
+`{genbank}-{host}-{length}` — id, host and length separately, host never parsed
+from an accession. Anything missing degrades to `null` in the manifest or is
+reported as a folder problem, never a crash.
 
 ```bash
-python3 scripts/prepare_data.py --dry-run              # discovery + size estimate
-python3 scripts/prepare_data.py --limit 40 --selfcheck 8
-python3 scripts/prepare_data.py --preset lean --budget 900MB
-python3 scripts/prepare_data.py --preset archive --base-url https://…/data
+python3 scripts/update_dataset.py /path/to/configuration_update_dataset.json
 ```
 
-| preset | LUT (max error) | preview | pdb | scores | ≈ payload |
-| --- | --- | --- | --- | --- | --- |
-| `lean` | `lean` (2.0 Å) | 900 px | backbone | – | ~0.45 GB |
-| `pages` *(default)* | `balanced` (1.5 Å) | 1100 px | backbone + full-atom | – | ~1.03 GB |
-| `hifi` | `hifi` (0.25 Å) | 1400 px | backbone + full-atom | – | ~1.1 GB |
-| `archive` | `hifi` (0.25 Å) | 1600 px | backbone + full-atom | ✔ | ~1.4 GB → Zenodo/HF |
+The config file is the whole interface — source folder, annotation CSV, alignment,
+clusters, host tree, output folder, `huggingface_dataset`, `PAEresolution`, workers:
 
-Individual knobs: `--lut`, `--codec {png,webp}`, `--img-px`, `--img-q`,
-`--pdb bb|full|bb,full`, `--scores-json`, `--checkpoints N`, `--only glob`,
-`--workers N`, `--force`. `--budget 900MB` walks a degradation ladder
-(lossless codec → smaller previews → drop full-atom PDB → coarser LUT) until
-the estimate fits, so the *stated* fidelity always matches the bits on disk.
-Artifacts already present are skipped (idempotent, cheap reruns); the manifest
-is rewritten every time.
+```json
+{
+  "modelfolder": "…/modelling/orf1s",          // one subfolder per prediction
+  "dataset":   "…/dataset_ORF1s_1178_reviewed.csv",
+  "ORF1_MSA":  "…/merged_alignment.fasta",     // .aln (Clustal) or .fasta — sniffed
+  "clusters":  "…/ICTV_ORF1s_clusters.csv",
+  "tree":      "…/ICTV_hepeviridae.tree",
+  "outputfolder": "…/hf-stage",                 // created if absent; == modelfolder is refused
+  "huggingface_dataset": "ttubiana/HEV-ORF1-models",
+  "PAEresolution": "hifi",                      // lean 2.0 Å | balanced 1.5 | hifi 0.25 | maxi 0.1
+  "maxWorkers": 8, "imageFormat": "webp", "checkpoints": 24
+}
+```
+
+| flag | what it does |
+| --- | --- |
+| *(nothing)* | build what is stale, upload what changed, report leftovers |
+| `--dry-run` | discovery + decisions, nothing written |
+| `--skip-models` | refresh CSV / alignment / tree / clusters / manifest only — model folders are never read or written |
+| `--only 'X*,Y*'` | rebuild a subset and re-publish them, **keeping** the rest of the catalogue |
+| `--force` | rebuild even when the artifacts look current |
+| `--limit N` | first N pending models (a smoke run, not a release) |
+| `--no-upload` / `--no-git` | stage locally / skip the optional git mirror of `outputfolder` |
+| `--prune` | delete the reported leftovers from the hub (default: report only) |
+| `--selfcheck N` | after building, decode N artifacts and diff against the JSON scores |
+
+Nothing is rebuilt or uploaded that is already current — a model counts as current when its
+artifacts are newer than the scores JSON *and* were written with the configured LUT/codec
+(re-recorded in `provenance.json`). A renamed or deleted model folder leaves the catalogue on
+the next run and its files appear in the leftovers report; `--prune` deletes them.
+The upload itself is a delta: artifacts are SHA256-compared against a ledger
+(`metadata/SHA256SUMS.txt`), only changed files are sent, and the ledger is written *after* a
+successful upload. `--only`/`--skip-models` never shrink the catalogue (they fall back to the
+published manifest when nothing is staged).
 
 ## Frontend
 
@@ -274,9 +299,8 @@ hit (`unassigned`, `distinct`), and which residue number / pLDDT it read.
 ## Downloads & the advanced Mol\* view
 
 * **↓ PDB** — the full-atom model of the current entry, decompressed in the browser
-  (`DecompressionStream`) so it opens straight in PyMOL / Coot / Mol\*. A payload packed
-  with `--pdb bb` only makes **↓ PDB** fall back to the backbone file the viewport loads
-  and say so in its tooltip.
+  (`DecompressionStream`) so it opens straight in PyMOL / Coot / Mol\*. It is the very file
+  the viewport renders — the payload ships one PDB per model.
 * **↗ Open genbank protein / ↗ Open genbank nuccore** — NCBI record of the entry's
   `genbank` protein accession (`…/protein/<id>`) or its `genbank_nucl` nucleotide
   accession (`…/nuccore/<id>`), in a new tab; each button shows only when that
@@ -296,7 +320,8 @@ Same-origin `./data/` by default, overridable (first match wins):
 1. `?dataBaseUrl=https://…/data/`
 2. `window.__ORF1_DATA_BASE_URL__` in `index.html`
 3. `VITE_DATA_BASE_URL` at build time
-4. `data/base-url.txt` pointer written by `prepare_data.py --base-url …`
+4. `data/base-url.txt` pointer file (optional; write it by hand if you want a data host that
+   survives a rebuild)
 5. `localStorage['orf1.dataBaseUrl']`, set from the ⚙ dialog (which also offers
    *copy diagnostics* — resolved URLs, phases, integrity result, cache state)
 
@@ -317,13 +342,14 @@ git. Realistic deployments:
   whose **repo root is this app's data root**. Build the site with
   `VITE_DATA_BASE_URL=https://huggingface.co/datasets/ttubiana/HEV-ORF1-models/resolve/main`
   (or override at runtime with `?dataBaseUrl=` / the ⚙ dialog). `dist/` stays ~1 MB.
-  Staging + upload: `npm run prepare:hf` then the staged commands in
-  **[`REPORT-hf-upload.md`](REPORT-hf-upload.md)** (LFS patterns, checksums,
-  provenance, verification, the optional 25 GB raw tier).
+  `scripts/update_dataset.py` stages into `outputfolder` and uploads the delta itself; the
+  first upload into a brand-new repo still needs its LFS patterns set up once — see
+  **[`REPORT-hf-upload.md`](REPORT-hf-upload.md)** for that, for the checksum / provenance
+  verification, and for the two-script workflow this replaced.
   *Status: uploaded 2026-08-29 — 5 899 files / 1.02 GB, public, `smoke --data-url`
   green (39/39).*
-  Use `--preset lean` for bandwidth-constrained hosts, `--preset archive` for
-  the archival deposit (full-atom PDB + scores JSON included).
+  Bandwidth-constrained host? Set `"PAEresolution": "lean"` (2.0 Å) in the config and
+  rebuild — the manifest always states the table that is actually on disk.
 * **Payload on Zenodo / R2 / S3 / a lab server** — same layout, same data-root
   contract; only the URL changes (`VITE_DATA_BASE_URL`, `?dataBaseUrl=`,
   `window.__ORF1_DATA_BASE_URL__`, `localStorage['orf1.dataBaseUrl']`).
@@ -347,7 +373,7 @@ Vite's `base: './'` keeps asset URLs relative, so the viewer remains portable.
 npm run typecheck
 npm run build && npm run smoke          # serves dist/, drives Chromium
 npm run smoke -- --url http://localhost:5177 --headed
-python3 scripts/prepare_data.py --selfcheck 10
+python3 scripts/update_dataset.py <config>.json --selfcheck 10
 
 # run every check against the Hugging Face payload instead of public/data/
 npm run smoke -- --data-url https://huggingface.co/datasets/ttubiana/HEV-ORF1-models/resolve/main
