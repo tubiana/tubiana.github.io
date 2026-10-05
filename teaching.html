@@ -1,0 +1,100 @@
+---
+title: Teaching
+description: >-
+  Teaching by Thibault Tubiana: molecular modelling and bioinformatics
+  courses, supervised students, and science outreach.
+permalink: /teaching/
+---
+
+<header class="page-head">
+  <div class="container">
+    <span class="kicker">Teaching</span>
+    <h1>Sharing the craft</h1>
+    <p class="lead">
+      From undergraduate labs to PhD students, I have taught molecular
+      modelling and bioinformatics in France and Norway.
+    </p>
+  </div>
+</header>
+
+<div class="container">
+
+  <section class="section" style="padding-top: 10px;">
+    <div class="section-head reveal">
+      <div>
+        <span class="kicker">Courses</span>
+        <h2>Teaching history</h2>
+      </div>
+    </div>
+    <div class="reveal">
+      {% for c in site.data.courses %}
+        <div class="course-row">
+          <div class="course-year">{{ c.period }}</div>
+          <div class="course-main">
+            <h3>{{ c.title }}</h3>
+            <p class="inst">{{ c.institution }}</p>
+            <p class="detail">{{ c.detail }}</p>
+          </div>
+          <div class="course-side">
+            <span class="chip">{{ c.hours }}</span>
+            <span class="chip">{{ c.level }}</span>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-head reveal">
+      <div>
+        <span class="kicker">Mentoring</span>
+        <h2>Students supervised</h2>
+      </div>
+    </div>
+    <ul class="student-list reveal">
+      {% for s in site.data.students %}
+        <li>
+          <div class="s-head">
+            <span class="s-name">{{ s.level }}</span>
+            <span class="s-meta">{{ s.institution }} · {{ s.period }} · {{ s.share }}</span>
+          </div>
+          <p class="s-topic">{{ s.topic }}</p>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <div class="grid-2" style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">
+    <section class="section" style="padding-top: 10px;">
+      <div class="section-head reveal" style="margin-bottom: 20px;">
+        <div>
+          <span class="kicker">Beyond the classroom</span>
+          <h2 style="font-size: 28px;">Outreach</h2>
+        </div>
+      </div>
+      <div class="card reveal">
+        <ul style="list-style:none; margin:0; padding:0;">
+          {% for o in site.data.outreach %}
+            <li style="font-size: 14.5px; padding: 9px 0; border-top: 1px dashed var(--line-strong);"><b>{{ o.year }} · {{ o.title }}</b> — {{ o.text }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top: 10px;">
+      <div class="section-head reveal" style="margin-bottom: 20px;">
+        <div>
+          <span class="kicker">Organization</span>
+          <h2 style="font-size: 28px;">Events organized</h2>
+        </div>
+      </div>
+      <div class="card reveal">
+        <ul style="list-style:none; margin:0; padding:0;">
+          {% for o in site.data.organization %}
+            <li style="font-size: 14.5px; padding: 9px 0; border-top: 1px dashed var(--line-strong);"><b>{{ o.year }} · {{ o.title }}</b> — {{ o.text }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+  </div>
+</div>

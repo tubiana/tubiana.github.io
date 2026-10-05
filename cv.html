@@ -1,0 +1,110 @@
+---
+title: CV
+description: >-
+  CV of Thibault Tubiana: work experience, education, grants, awards and
+  service in structural biology and bioinformatics.
+permalink: /cv/
+---
+
+<header class="page-head">
+  <div class="container">
+    <span class="kicker">CV</span>
+    <h1>Thibault TUBIANA, Ph.D. Resume</h1>
+    <p class="lead">
+      Structural biologist and bioinformatician — modelling, simulations and
+      teaching, in France and (previously) Norway.
+    </p>
+    <div class="pub-stats">
+      <span class="chip">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        {% include obfuscated-email.html %}
+      </span>
+      <span class="chip">{{ site.affiliation.location }}</span>
+      <a class="chip" href="https://orcid.org/{{ site.social.orcid }}" target="_blank" rel="noopener">ORCID ↗</a>
+      <a class="chip" href="{{ site.social.google_scholar }}" target="_blank" rel="noopener">Google Scholar ↗</a>
+      <a class="chip" href="{{ site.social.github }}" target="_blank" rel="noopener">GitHub ↗</a>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+  <div class="resume-grid">
+
+    <aside class="resume-aside">
+      <div class="aside-card reveal">
+        <h4>Focus areas</h4>
+        <div class="aside-chips">
+          {% for area in site.data.cv.focus_areas %}<span class="chip">{{ area }}</span>{% endfor %}
+        </div>
+      </div>
+
+      <div class="aside-card reveal">
+        <h4>Awards</h4>
+        <ul>
+          {% for a in site.data.cv.awards %}<li><span class="award-year">{{ a.year }}</span>{{ a.text }}</li>{% endfor %}
+        </ul>
+      </div>
+
+
+
+      <div class="aside-card reveal">
+        <h4>Service</h4>
+        <ul>
+          {% for s in site.data.cv.service %}<li>{{ s.period }} — {{ s.text }}</li>{% endfor %}
+        </ul>
+      </div>
+    </aside>
+
+    <main>
+      <section class="section" style="padding-top: 10px;">
+        <div class="section-head reveal">
+          <div>
+            <span class="kicker">Work experience</span>
+            <h2>Experience</h2>
+          </div>
+        </div>
+        <div class="timeline">
+          {% for e in site.data.cv.experience %}
+            <div class="tl-item{% if e.current %} current{% endif %} reveal">
+              <span class="tl-dot"></span>
+              <div class="tl-card">
+                <div class="tl-when">
+                  <span class="period">{{ e.period }}</span>
+                  {% if e.current %}<span class="badge badge-current">Current</span>{% endif %}
+                </div>
+                <h3>{{ e.title }}</h3>
+                <p class="tl-org">{{ e.org }}</p>
+                {% if e.supervisor %}<p class="sup">Supervision: {{ e.supervisor }}</p>{% endif %}
+                <ul>
+                  {% for b in e.bullets %}<li>{{ b }}</li>{% endfor %}
+                </ul>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="section resume-edu" style="padding-top: 20px;">
+        <div class="section-head reveal">
+          <div>
+            <span class="kicker">Education</span>
+            <h2>Education</h2>
+          </div>
+        </div>
+        <div class="timeline">
+          {% for ed in site.data.cv.education %}
+            <div class="tl-item reveal">
+              <span class="tl-dot"></span>
+              <div class="tl-card">
+                <div class="tl-when"><span class="period">{{ ed.period }}</span></div>
+                <h3>{{ ed.degree }}</h3>
+                <p class="tl-org">{{ ed.institution }}</p>
+                {% if ed.description and ed.description != "" %}<p>{{ ed.description }}</p>{% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+    </main>
+  </div>
+</div>

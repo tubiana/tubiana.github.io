@@ -1,0 +1,43 @@
+# Supervised students — level only, no names (by design, so students aren't
+# identifiable here without their consent). To add one: copy a block below.
+- level: "PhD"
+  institution: "Université Paris-Saclay"
+  period: "2025 — 2028"
+  share: "40%"
+  topic: "Molecular modelling part of the thesis: membrane interaction of the MetY domain of the HEV replication polyprotein (pORF1)."
+
+- level: "Master 1"
+  institution: "Université Paris-Cité"
+  period: "2024 (3 months)"
+  share: "100%"
+  topic: "Molecular modelling of the pORF1 polyprotein from different HEV species — implications for HEV zoonoses."
+
+- level: "Engineering school, M2"
+  institution: "AgroParisTech"
+  period: "2024 (6 months)"
+  share: "50%"
+  topic: "Molecular dynamics of the HEV ORF1 MetY domain with different membrane models (100% of the in-silico part)."
+
+- level: "Engineering school, M1"
+  institution: "AgroParisTech"
+  period: "2023 (3 months)"
+  share: "50%"
+  topic: "Discovery of a new dimerization site in the HCV membrane-rearrangement protein (100% of the in-silico part)."
+
+- level: "Master 2, Molecular Biology"
+  institution: "University of Bergen"
+  period: "2021 (11 months)"
+  share: "50%"
+  topic: "Characterization of the amino-acid composition at the membrane interface of PH domains (data analysis part; work spread over two academic years)."
+
+- level: "Master 2, Bioinformatics"
+  institution: "University of Bergen"
+  period: "2020 (4 months)"
+  share: "25%"
+  topic: "Development of a Chimera plugin to visualize hydrophobic protrusions (programming / visualization part)."
+
+- level: "Master 2, Bioinformatics"
+  institution: "Université Paris Diderot"
+  period: "2017 (6 months)"
+  share: "100%"
+  topic: "Growth of a pentamer of VP1 dimers by protein–protein docking."

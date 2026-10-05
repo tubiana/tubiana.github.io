@@ -1,0 +1,126 @@
+---
+title: Research
+description: >-
+  Research by Thibault Tubiana: virus self-assembly, hepatitis E and C,
+  membrane–protein interactions, and the computational methods to study them.
+permalink: /research/
+---
+
+<header class="page-head">
+  <div class="container">
+    <span class="kicker">Research</span>
+    <h1>Molecular dynamics &amp; AlphaFold<br>for viral protein self-assembly</h1>
+    <p class="lead">
+      From coarse grained models to all-atom simulations, I study how viral proteins assemble
+      and how some of them interact with cell membranes.  
+      I combine molecular dynamics and de-novo modelling (with Alphafold or related tools) to construct model hypotheses about the molecular mechanisms of viral assembly and membrane interactions.
+      In this page, you will find a selection of my research projects, with links to related publications and open-source tools that have been developed.
+    </p>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Theme 1a: Hepatitis E -->
+  <section class="theme-row reveal" style="border-top: none; padding-top: 44px;">
+    <div class="theme-text">
+      <div class="period">I2BC · 2022 — present</div>
+      <h3>Hepatitis E: structure and domain organization of ORF1</h3>
+      <p>
+        With Dr. Sonia Fieulaine and Dr. Stephane Bressanelli at I2BC, I use AlphaFold-based modelling, 
+        combined with a soluble expression system Sonia developed for this
+        notoriously hard-to-produce protein, to determine the structure of
+        HEV's replication polyprotein ORF1 (~1700 residues, 186 kDa). This
+        revised the domain map first proposed in 1992 from six domains to
+        five, showed there is in fact no protease domain, and identified a new
+        domain I named <b>MetY</b>. I'm now extending this classification
+        across HEV genotypes and host species.
+      </p>
+      <div class="links" style="display:flex; gap:10px; flex-wrap:wrap; margin: 4px 0 16px;">
+        <a class="btn btn-ghost btn-sm" href="{{ '/projects/hev-porf1-mety/' | relative_url }}">Project details →</a>
+      </div>
+      <ul class="paper-links">
+        <li><span class="tag">Virology</span> <a href="{{ '/publications/' | relative_url }}">De novo modelling of the HEV replication polyprotein (2023)</a></li>
+        <li><span class="tag">Front. Microbiol.</span> <a href="{{ '/publications/' | relative_url }}">Hepatitis E virus RNA replication polyprotein: taking structural biology seriously (2023)</a></li>
+      </ul>
+    </div>
+    <div class="theme-media">
+      <img src="{{ '/assets/images/gallery/AF_GOODSELL-STYLE_233_signed.png' | relative_url }}" alt="Goodsell-style render of an AlphaFold model of HEV ORF1" loading="lazy">
+    </div>
+  </section>
+
+  <!-- Theme 1b: Hepatitis C -->
+  <section class="theme-row reverse reveal">
+    <div class="theme-text">
+      <div class="period">I2BC · 2022 — present</div>
+      <h3>Hepatitis C: a new NS5A dimerization interface</h3>
+      <p>
+        Modelling the hepatitis C virus proteins NS5A and NS5B together at the
+        endoplasmic-reticulum membrane, I identified a previously unknown NS5A
+        dimerization interface (D2), now being pursued crystallographically
+        with Prof. Volker Lohmann's group.
+      </p>
+      <div class="links" style="display:flex; gap:10px; flex-wrap:wrap; margin: 4px 0 16px;">
+        <a class="btn btn-ghost btn-sm" href="{{ '/projects/hcv-ns5a-dimerization/' | relative_url }}">Project details →</a>
+      </div>
+      <ul class="paper-links">
+        <li><span class="tag">Nat. Commun.</span> <a href="{{ '/publications/' | relative_url }}">HCV NS3 helicase contributes to (−) strand RNA synthesis (2025)</a></li>
+      </ul>
+    </div>
+    <div class="theme-media">
+      <img src="{{ '/assets/images/research/NS5A_illustration.png' | relative_url }}" alt="HCV illustration" loading="lazy">
+    </div>
+  </section>
+
+  <!-- Theme 2 -->
+  <section class="theme-row reveal">
+    <div class="theme-text">
+      <div class="period">University of Bergen · 2019 — 2022</div>
+      <h3>Peripheral protein–membrane interfaces</h3>
+      <p>
+        With Prof. Nathalie Reuter, I characterized how peripheral proteins
+        recognize and bind membranes. I built a <b>curated dataset of
+        peripheral protein–membrane interfaces</b> with dedicated analysis
+        tools, and applied <b>supervised machine learning</b> to extract the
+        features that drive these interactions.
+      </p>
+      <div class="links" style="display:flex; gap:10px; flex-wrap:wrap; margin: 4px 0 16px;">
+        <a class="btn btn-ghost btn-sm" href="{{ '/projects/peripheral-membrane-interfaces/' | relative_url }}">Project details →</a>
+      </div>
+      <ul class="paper-links">
+        <li><span class="tag">PLOS Comput. Biol.</span> <a href="{{ '/publications/' | relative_url }}">Dissecting peripheral protein–membrane interfaces (2022) — first author</a></li>
+        <li><span class="tag">Adv. Phys. X</span> <a href="{{ '/publications/' | relative_url }}">Membrane models for MD simulations of peripheral membrane proteins (2021) — first author, review</a></li>
+      </ul>
+    </div>
+    <div class="theme-media">
+      <img src="{{ '/assets/images/research/membrane.jpg' | relative_url }}" alt="Peripheral protein at a membrane interface" loading="lazy">
+    </div>
+  </section>
+
+  <!-- Theme 3 -->
+  <section class="theme-row reverse reveal">
+    <div class="theme-text">
+      <div class="period">PhD, I2BC · 2014 — 2017</div>
+      <h3>Viral capsid self-assembly</h3>
+      <p>
+        My PhD (with Dr. Stéphane Bressanelli) combined molecular dynamics,
+        homology modelling, protein–protein docking and <b>SAXS</b> experiments
+        to study the self-assembly of norovirus capsids. It also led to
+        <a href="{{ '/tools/#ttclust' | relative_url }}">TTClust</a>, a trajectory clustering
+        program now widely used by the community.
+      </p>
+      <div class="links" style="display:flex; gap:10px; flex-wrap:wrap; margin: 4px 0 16px;">
+        <a class="btn btn-ghost btn-sm" href="{{ '/projects/norovirus-capsid-assembly/' | relative_url }}">Project details →</a>
+      </div>
+      <ul class="paper-links">
+        <li><span class="tag">J. Chem. Inf. Model.</span> <a href="{{ '/publications/' | relative_url }}">TTClust: trajectory clustering with graphical summaries (2018) — first &amp; corresponding author</a></li>
+        <li><span class="tag">PLoS ONE</span> <a href="{{ '/publications/' | relative_url }}">Dynamics and asymmetry in the norovirus VP1 dimer (2017) — first author</a></li>
+        <li><span class="tag">PLoS Pathog.</span> <a href="{{ '/publications/' | relative_url }}">Membrane alterations induced by norovirus nonstructural proteins (2017)</a></li>
+      </ul>
+    </div>
+    <div class="theme-media">
+      <img src="{{ '/assets/images/research/capsid.jpg' | relative_url }}" alt="Viral capsid with open portal" loading="lazy">
+    </div>
+  </section>
+
+</div>

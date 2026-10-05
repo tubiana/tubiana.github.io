@@ -1,0 +1,45 @@
+# Newest first. Set current: true on exactly one entry (the one you want
+# marked "Current" on the CV page) and remove it from the previous one.
+# To add a position: copy a whole "- title: ..." block and edit it.
+
+- title: "CNRS research project"
+  current: true
+  period: "December 2025 — present"
+  org: "I2BC · Université Paris-Saclay — CEA — CNRS, Gif-sur-Yvette, France"
+  bullets:
+    - "Development of a computational method to study the self-assembly of biomolecular systems."
+    - "Decyphering the organisation of the hepatitis E ORF1 replication polyprotein."
+  # NOTE: project name/acronym intentionally omitted — not public yet.
+
+- title: "Postdoctoral fellow"
+  period: "2022 — 2024 · 30 months"
+  org: "I2BC — Institut de Biologie Intégrative de la Cellule, France"
+  supervisor: "Dr. Sonia Fieulaine"
+  bullets:
+    - "Structure, modelling and membrane interactions of hepatitis E virus (HEV) proteins."
+    - "Study of the dimerization of the D2 domain of the HCV protein NS5A."
+
+- title: "Postdoctoral fellow"
+  period: "2019 — 2022 · 33 months"
+  org: "Department of Chemistry, University of Bergen, Norway"
+  supervisor: "Prof. Nathalie Reuter"
+  bullets:
+    - "Characterization of interaction interfaces between peripheral proteins and membranes."
+    - "Built a dataset and analysis tools for these interfaces, now used for supervised machine-learning approaches."
+    - "Course administrator and lecturer for KJEM220 Molecular Modelling (BSc — PhD)."
+
+- title: "Postdoctoral fellow"
+  period: "2017 — 2019 · 18 months"
+  org: "Laboratoire de Recherche Servier — Molecular Modelling team, Croissy-sur-Seine, France"
+  supervisor: "Dr. Arnaud Gohier"
+  bullets:
+    - "Development of a methodology to enrich knowledge on bioisosteric fragments for internal use."
+
+- title: "PhD student"
+  period: "2014 — 2017 · 36 months"
+  org: "I2BC — Université Paris-Saclay — CEA — CNRS, France"
+  supervisor: "Dr. Stéphane Bressanelli"
+  bullets:
+    - "Self-assembly of norovirus capsids: molecular dynamics, homology modelling, docking and SAXS."
+    - "Development of TTClust, a trajectory clustering program now widely used in the community."
+    - "Teaching assistant at Université Paris Diderot: Python, structural biology, biostatistics."

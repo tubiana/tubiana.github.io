@@ -1,0 +1,37 @@
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <div class="f-name">{{ site.title }}</div>
+        <p>Structural biologist &amp; bioinformatician. {{ site.affiliation.lab }}, {{ site.affiliation.full }}, {{ site.affiliation.location }}.</p>
+        <div class="hero-social" style="margin-top: 16px;">
+          {% include social-links.html %}
+        </div>
+      </div>
+      <div>
+        <h5>Elsewhere</h5>
+        <ul>
+          <li><a href="https://orcid.org/{{ site.social.orcid }}" target="_blank" rel="noopener">ORCID</a></li>
+          <li><a href="{{ site.social.google_scholar }}" target="_blank" rel="noopener">Google Scholar</a></li>
+          <li><a href="{{ site.social.github }}" target="_blank" rel="noopener">GitHub</a></li>
+          <li>{% include obfuscated-email.html %}</li>
+        </ul>
+      </div>
+      <div>
+        <h5>Site</h5>
+        <ul>
+          {% for item in site.nav %}
+            {% unless item.url == "/" %}
+              <li><a href="{{ item.url | relative_url }}">{{ item.title }}</a></li>
+            {% endunless %}
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>&copy; <span id="footer-year">2026</span> {{ site.title }}</span>
+      <span>Source on <a href="https://github.com/tubiana/tubiana.github.io" target="_blank" rel="noopener">GitHub</a></span>
+    </div>
+  </div>
+</footer>
+<script>document.getElementById("footer-year").textContent = new Date().getFullYear();</script>

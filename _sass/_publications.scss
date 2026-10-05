@@ -1,0 +1,76 @@
+.publications { padding-bottom: 20px; }
+
+.bibliography {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.bibliography h2 {
+  font-size: 1.5rem;
+  margin: 44px 0 18px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--line);
+  color: var(--accent-dark);
+}
+.bibliography h2:first-child { margin-top: 0; }
+
+.bibliography li {
+  list-style: none;
+  border-bottom: 1px solid var(--line);
+}
+.bibliography li:last-child { border-bottom: none; }
+
+.pub-entry {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  padding: 18px 4px;
+  scroll-margin-top: calc(var(--nav-h) + 16px);
+}
+.pub-entry:target { background: var(--accent-soft); border-radius: var(--radius-sm); }
+.pub-main { flex: 1; min-width: 0; }
+.pub-title {
+  margin: 0 0 5px;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.pub-title a { color: var(--ink); text-underline-offset: 3px; }
+.pub-title a:hover { color: var(--accent-dark); text-decoration: underline; }
+.pub-authors {
+  margin: 0 0 4px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.pub-authors b { color: var(--ink); font-weight: 700; }
+.pub-journal {
+  margin: 0;
+  font-size: 13.5px;
+  font-style: italic;
+  color: var(--faint);
+}
+
+.pub-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.pub-badges .badge {
+  margin: 0;
+  font-size: 11px;
+  padding: 3px 10px;
+}
+.badge-first-author, .badge-corresponding { background: var(--accent); color: #fff; }
+.badge-co-first-author { background: var(--accent-soft); color: var(--accent-dark); }
+.badge-review { background: #eef0e8; color: #5b6152; }
+.badge-preprint { background: #f4ede1; color: #8a6a2f; }
+
+.pub-links { flex: none; padding-top: 18px; }
+.pub-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-dark);
+  white-space: nowrap;
+}
+
+.pub-stats { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 18px 0 0; }

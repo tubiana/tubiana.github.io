@@ -1,0 +1,113 @@
+# ============================================================================
+# Site configuration — safe to edit (title, description, links, colors).
+# Layout/behavior lives in _layouts, _includes, _sass — leave those alone.
+# ============================================================================
+
+title: "Thibault Tubiana"
+tagline: "Structural biology · Bioinformatics"
+description: >-
+  Structural biologist and bioinformatician at I2BC (CEA–CNRS–Université
+  Paris-Saclay). Research on virus assembly and protein membrane protein
+  interactions, open-source tools, teaching and 3D visualization.
+url: "https://tubiana.github.io"
+baseurl: ""
+lang: en
+timezone: Europe/Paris
+
+author:
+  name: "Thibault Tubiana"
+
+# ---- Build ------------------------------------------------------------
+sass:
+  style: compressed
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+encoding: utf-8
+
+# Everything below stays out of Jekyll's way: hand-built mini-apps that
+# already live at these paths and are cited/linked externally — do not
+# rename or move these folders.
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - README.md
+  - UPDATING.md
+  - vendor
+  - node_modules
+  - "*.gemspec"
+include:
+  - af3_analysis
+  - afbuilderjson
+  - mdstepscalculator
+  - uniprot_to_seq
+  - ARdemo
+  - af_scores
+  - msa_swiss_knife
+
+plugins:
+  - jekyll-scholar
+  - jekyll-sitemap
+  - jekyll-seo-tag
+  - jekyll-feed
+
+# Individual project detail pages (linked from Research, no standalone
+# "Projects" nav tab — see each _projects/*.md file).
+collections:
+  projects:
+    output: true
+    permalink: /projects/:path/
+
+# ---- jekyll-scholar (publications from BibTeX) -------------------------
+scholar:
+  style: apa
+  locale: en
+  source: _bibliography
+  bibliography: publications.bib
+  bibliography_template: bib
+  bibtex_filters: [latex, smallcaps, superscript]
+  query: "@*"
+  group_by: year
+  group_order: descending
+
+# ---- Your details (used across the site) --------------------------------
+social:
+  email_user: thibault.tubiana
+  email_domain: i2bc.paris-saclay.fr
+  orcid: "0000-0002-6490-4602"
+  google_scholar: "https://scholar.google.com/citations?user=N012hWYAAAAJ&hl=en"
+  github: "https://github.com/tubiana"
+
+affiliation:
+  lab: "I2BC — Institut de Biologie Intégrative de la Cellule"
+  full: "CEA — CNRS — Université Paris-Saclay"
+  location: "Gif-sur-Yvette, France"
+
+nav:
+  - title: Home
+    url: /
+  - title: Research
+    url: /research/
+  - title: Publications
+    url: /publications/
+  - title: Teaching
+    url: /teaching/
+  - title: Tools
+    url: /tools/
+  - title: Gallery
+    url: /gallery/
+  - title: CV
+    url: /cv/
+
+defaults:
+  - scope:
+      path: ""
+      type: "pages"
+    values:
+      layout: "default"
+  - scope:
+      path: ""
+      type: "projects"
+    values:
+      layout: "project"

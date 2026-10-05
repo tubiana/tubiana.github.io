@@ -1,0 +1,71 @@
+---
+---
+{% assign ob = "{" %}
+{% assign cb = "}" %}
+<div class="pub-entry reveal" id="{{ entry.key }}">
+  <div class="pub-main">
+    {% assign clean_title = entry.title | remove: ob | remove: cb %}
+    <p class="pub-title">
+      {% if entry.doi %}<a href="https://doi.org/{{ entry.doi }}" target="_blank" rel="noopener">{{ clean_title }}</a>
+      {% elsif entry.url %}<a href="{{ entry.url }}" target="_blank" rel="noopener">{{ clean_title }}</a>
+      {% else %}{{ clean_title }}
+      {% endif %}
+    </p>
+    {% assign authors_line = "" %}
+    {% for author in entry.author_array %}
+      {% if author.last == "others" %}
+        {% assign name_disp = "et al." %}
+      {% else %}
+        {% assign initials = "" %}
+        {% assign name_parts = author.first | split: "-" %}
+        {% for part in name_parts %}
+          {% assign letter = part | strip | slice: 0 %}
+          {% if forloop.last %}{% assign initials = initials | append: letter | append: "." %}
+          {% else %}{% assign initials = initials | append: letter | append: ".-" %}
+          {% endif %}
+        {% endfor %}
+        {% assign plain_name = initials | append: " " | append: author.last %}
+        {% if author.last == "Tubiana" %}
+          {% capture name_disp %}<b>{{ plain_name }}</b>{% endcapture %}
+        {% else %}
+          {% assign name_disp = plain_name %}
+        {% endif %}
+      {% endif %}
+      {% if forloop.first %}
+        {% assign authors_line = name_disp %}
+      {% else %}
+        {% assign authors_line = authors_line | append: ", " | append: name_disp %}
+      {% endif %}
+    {% endfor %}
+    <p class="pub-authors">{{ authors_line }}</p>
+    {% assign is_preprint = false %}
+    {% if entry.type == "misc" or entry.journal contains "bioRxiv" or entry.journal contains "arXiv" or entry.publisher contains "bioRxiv" or entry.publisher contains "arXiv" %}
+      {% assign is_preprint = true %}
+    {% endif %}
+    {% if is_preprint %}
+      {% assign clean_venue = entry.publisher | default: entry.journal | remove: ob | remove: cb %}
+      <p class="pub-journal">{{ clean_venue }} ({{ entry.year }})</p>
+    {% else %}
+      {% assign clean_journal = entry.journal | remove: ob | remove: cb %}
+      <p class="pub-journal">
+        {{ clean_journal }}{% if entry.volume %} {{ entry.volume }}{% endif %}{% if entry.number %}({{ entry.number }}){% endif %}{% if entry.pages %}, {{ entry.pages }}{% endif %} ({{ entry.year }})
+      </p>
+    {% endif %}
+    {% assign badge_list = "" %}
+    {% if entry.role contains "review" %}{% assign badge_list = badge_list | append: "review," %}{% endif %}
+    {% if is_preprint %}{% assign badge_list = badge_list | append: "preprint," %}{% endif %}
+    {% if badge_list != "" %}
+      <div class="pub-badges">
+        {% assign badges = badge_list | split: "," %}
+        {% for b in badges %}
+          <span class="badge badge-{{ b }}">{{ b | capitalize }}</span>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+  {% if entry.code %}
+    <div class="pub-links">
+      <a href="{{ entry.code }}" target="_blank" rel="noopener" class="pub-link">Code ↗</a>
+    </div>
+  {% endif %}
+</div>

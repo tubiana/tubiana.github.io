@@ -1,0 +1,59 @@
+---
+title: Gallery
+description: >-
+  Scientific and artistic 3D renders and animations by Thibault Tubiana,
+  made in Blender: viral particles, lipid membranes, neon proteins.
+permalink: /gallery/
+extra_js:
+  - /assets/js/gallery-lightbox.js
+---
+
+<header class="gallery-head page-head">
+  <div class="container">
+    <span class="kicker">Gallery</span>
+    <h1>Structure, rendered</h1>
+    <p class="lead">
+      3D visualizations made (mostly) in Blender — scientific renders of simulations,
+      models and density maps, alongside more artistic explorations.
+      Click any photo to zoom, or a video to play it.
+      Please note most of the pictures are scientific illustrations, sometimes just to have fun, sometimes to illustrate paper ou presentations, or just to learn blender 😉.  
+      <br><i>Description of the pictures are for now AI generated, replacement in progress</i>
+    </p>
+    <div class="gallery-filters">
+      <button class="gfilter active" data-filter="all">All</button>
+      <button class="gfilter" data-filter="photo">Still renders</button>
+      <button class="gfilter" data-filter="video">Animations</button>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+  <div class="masonry">
+    {% for item in site.data.gallery %}
+      <div class="gitem" data-type="{{ item.type }}">
+        <figure>
+          {% if item.type == "photo" %}
+            <div class="gframe" data-full="{{ item.image | relative_url }}" data-title="{{ item.title }}" data-caption="{{ item.caption }}">
+              <img src="{{ item.image | relative_url }}" alt="{{ item.title }}" loading="lazy">
+            </div>
+          {% else %}
+            <div class="gframe is-video"
+                 {% if item.youtube_id %}data-youtube="{{ item.youtube_id }}"{% endif %}
+                 {% if item.video_src %}data-video-src="{{ item.video_src | relative_url }}"{% endif %}
+                 data-title="{{ item.title }}" data-caption="{{ item.caption }}">
+              <div class="video-thumb">
+                <video src="{{ item.video_src | relative_url }}" muted preload="metadata" playsinline></video>
+                <div class="play-badge">
+                  <span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                  </span>
+                </div>
+              </div>
+            </div>
+          {% endif %}
+          <figcaption><b>{{ item.title }}</b><span>{{ item.caption }}</span></figcaption>
+        </figure>
+      </div>
+    {% endfor %}
+  </div>
+</div>

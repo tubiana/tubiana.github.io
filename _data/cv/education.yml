@@ -1,0 +1,11 @@
+# Degrees only (per your request — PhD is listed under Experience instead).
+# To add one: copy a block below and edit it.
+- degree: "Master's degree, Bioinformatics"
+  institution: "Université Paris Diderot, Paris, France"
+  period: "2012 — 2014"
+  description: "Molecular & structural biology track."
+
+- degree: "Bachelor's degree, Bioinformatics"
+  institution: "TODO: confirm institution and years"
+  period: "TODO"
+  description: ""

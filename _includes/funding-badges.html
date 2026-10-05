@@ -1,0 +1,12 @@
+<div class="funding-band">
+  <div class="container">
+    <span class="funding-label">Supported by</span>
+    <div class="funding-logos">
+      {% for f in site.data.funding %}
+        <a href="{{ f.url }}" target="_blank" rel="noopener" title="{{ f.name }}">
+          <img src="{{ f.logo | relative_url }}" alt="{{ f.name }}" loading="lazy">
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+</div>

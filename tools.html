@@ -1,0 +1,64 @@
+---
+title: Tools & Software
+description: >-
+  Open-source tools and web applications by Thibault Tubiana: TTClust,
+  AlphaFold tools and more, on GitHub.
+permalink: /tools/
+---
+
+<header class="page-head">
+  <div class="container">
+    <span class="kicker">Tools &amp; Software</span>
+    <h1>Built for the community</h1>
+    <p class="lead">
+      Alongside my research, I develop open-source tools and web applications to help my students or other labs analyze their data and visualize their results.
+            Everything below is open source and hosted under <a href="{{ site.social.github }}" target="_blank" rel="noopener"><b>my Github account</b></a>.
+
+    </p>
+  </div>
+</header>
+
+<div class="container" style="padding-bottom: 40px;">
+
+  {% assign f = site.data.tools.featured %}
+  <section class="tool-hero reveal" id="ttclust">
+    <div class="text">
+      <span class="badge">Featured · {{ f.tagline }}</span>
+      <h2>{{ f.name }}</h2>
+      <p>{{ f.description }}</p>
+      <div class="links">
+        <a class="btn btn-primary btn-sm" href="{{ f.github }}" target="_blank" rel="noopener">GitHub repository →</a>
+        <a class="btn btn-ghost btn-sm" href="{{ '/publications/' | relative_url }}">Associated paper</a>
+      </div>
+    </div>
+    <div class="img{% if f.image_contain %} img-contain{% endif %}">
+      <img src="{{ f.image | relative_url }}" alt="{{ f.name }}">
+    </div>
+  </section>
+
+  {% for cat in site.data.tools.categories %}
+    <section class="section" style="padding: 40px 0 10px;">
+      <div class="section-head reveal">
+        <div>
+          <span class="kicker">{{ cat.tagline }}</span>
+          <h2>{{ cat.name }}</h2>
+        </div>
+      </div>
+      <div class="tool-grid reveal">
+        {% for t in cat.tools %}
+          <div class="tool-card">
+            <span class="t-name">
+              {% if t.demo %}{{ t.name }}{% else %}<a href="{{ t.github }}" target="_blank" rel="noopener">{{ t.name }}</a>{% endif %}
+              <span class="lang">· {{ t.lang }}</span>
+            </span>
+            <p>{{ t.description }}</p>
+            <span class="t-links">
+              {% if t.demo %}<a href="{{ t.demo }}" target="_blank" rel="noopener"><b>Open app</b> ↗</a>{% endif %}
+              <a href="{{ t.github }}" target="_blank" rel="noopener">{% if t.demo %}Source{% else %}GitHub{% endif %} ↗</a>
+            </span>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  {% endfor %}
+</div>

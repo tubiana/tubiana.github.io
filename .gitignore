@@ -2,3 +2,12 @@ af3_analysis/data_for_test/*
 afbuilderjson/alphafold3_prediction_doc.md
 afbuilderjson/boltz_prediction_doc.md
 afbuilderjson/test_interface.html
+
+# Jekyll
+_site/
+.jekyll-cache/
+.jekyll-metadata
+.bundle/
+vendor/
+.sass-cache/
+/bin/

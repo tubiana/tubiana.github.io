@@ -1,0 +1,98 @@
+# Tools & software. "featured" (at most one) gets the big hero treatment.
+# To add a tool: copy a block into the right category and edit it.
+# type: "webapp" | "repo"
+
+featured:
+  name: "TTClust"
+  tagline: "Most cited"
+  description: >-
+    A versatile molecular simulation trajectory clustering program with
+    graphical summaries — for Amber, GROMACS, CHARMM, NAMD, PDB and more.
+    Developed during my PhD, now widely used by the scientific community.
+  github: "https://github.com/tubiana/TTClust"
+  paper_key: "tubiana2018ttclust"
+  image: /assets/images/tools/ttclust-logo.png
+  image_contain: true
+
+categories:
+  - name: "Web applications"
+    tagline: "Browser tools hosted on this very site (and on GitHub Pages)."
+    tools:
+      - name: "ORF1viewer"
+        type: webapp
+        lang: "web app"
+        description: "Interactive viewer for AlphaFold models of the hepatitis E virus replication polyprotein (ORF1), across HEV species and genotypes."
+        demo: "https://tubiana.github.io/ORF1viewer/"
+        github: "https://github.com/tubiana/tubiana.github.io/tree/main/ORF1viewer"
+      - name: "af3_analysis"
+        type: webapp
+        lang: "web app"
+        description: "Analysis and visualization of AlphaFold3 results — ipSAE score calculations, per-residue and per-chain plots, and filtering to AlphaFold-only models."
+        demo: "https://tubiana.github.io/af3_analysis/"
+        github: "https://github.com/tubiana/tubiana.github.io/tree/main/af3_analysis"
+      - name: "afbuilderjson"
+        type: webapp
+        lang: "web app"
+        description: "Build AlphaFold3 and Boltz-2 JSON/YAML input files in your browser, with support for many PTMs (including s-farnesyl-l-cysteine)."
+        demo: "https://tubiana.github.io/afbuilderjson/"
+        github: "https://github.com/tubiana/tubiana.github.io/tree/main/afbuilderjson"
+      - name: "MD step calculator"
+        type: webapp
+        lang: "web app"
+        description: "Convert between simulation steps, timesteps and simulated time — quick unit math for molecular dynamics."
+        demo: "https://tubiana.github.io/mdstepscalculator/"
+        github: "https://github.com/tubiana/tubiana.github.io/tree/main/mdstepscalculator"
+      - name: "UniProt → FASTA"
+        type: webapp
+        lang: "web app"
+        description: "Fetch sequences from UniProt, and copy multiple sequences in a single FASTA file."
+        demo: "https://tubiana.github.io/uniprot_to_seq/"
+        github: "https://github.com/tubiana/tubiana.github.io/tree/main/uniprot_to_seq"
+
+  - name: "Molecular dynamics toolkit"
+    tagline: "Simulation & analysis"
+    tools:
+      - name: "protocolGromacs"
+        type: repo
+        lang: "Shell"
+        description: "Automatic GROMACS protocol from preparation to production, with ligand parametrization integrated (via acpype)."
+        github: "https://github.com/tubiana/protocolGromacs"
+      - name: "SMDAGui"
+        type: repo
+        lang: "Python"
+        description: "Simple Molecular Dynamics Analysis graphical interface — a friendly front-end to MDTraj to generalize MD analysis."
+        github: "https://github.com/tubiana/SMDAGui_dev"
+
+
+  - name: "AlphaFold & co"
+    tagline: "Structure prediction"
+    tools:
+      - name: "AFToolkit"
+        type: repo
+        lang: "Jupyter"
+        description: "Personal toolkit of scripts and notebooks for AlphaFold: batch analysis, statistics and visualizations of predictions."
+        github: "https://github.com/tubiana/AFToolkit"
+      - name: "alphasub"
+        type: repo
+        lang: "Python"
+        description: "Submission server for ColabFold (AlphaFold) developed for the I2BC institute — queue-based, multi-user prediction runs."
+        github: "https://github.com/tubiana/alphasub"
+
+  - name: "Utility scripts"
+    tagline: "Structural biology"
+    tools:
+      - name: "MRCcleaner"
+        type: repo
+        lang: "Python"
+        description: "Correct MRC files with an FFT shift and mirror transform to get fully symmetrical, spherical density maps."
+        github: "https://github.com/tubiana/MRCcleaner"
+      - name: "RSPFilter"
+        type: repo
+        lang: "Python"
+        description: "Homogeneous filtering of RELION star particle files based on rotation and tilt angles."
+        github: "https://github.com/tubiana/RSPFilter"
+      - name: "screening_protocol"
+        type: repo
+        lang: "Jupyter"
+        description: "Automated docking screening protocol with AutoDock-GPU."
+        github: "https://github.com/tubiana/screening_protocol"

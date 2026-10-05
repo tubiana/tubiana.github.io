@@ -1,0 +1,32 @@
+// Ink & Slate — design tokens. Change colors/fonts here only.
+:root {
+  --paper: #faf9f6;
+  --card: #ffffff;
+  --ink: #1e211d;
+  --muted: #5b6158;
+  --faint: #8a9086;
+  --line: #e3e1d9;
+  --line-strong: #cfccc0;
+
+  --accent: #2f6690;
+  --accent-dark: #204a6b;
+  --accent-soft: #e5edf5;
+  --accent-ink: #eef3f8;
+
+  --footer-bg: #1a1d17;
+  --footer-text: #e7e8e2;
+  --footer-muted: #9aa194;
+  --footer-line: #2c3027;
+
+  --radius: 14px;
+  --radius-sm: 9px;
+  --shadow-sm: 0 1px 2px rgba(20, 22, 18, 0.06);
+  --shadow-md: 0 8px 28px -10px rgba(20, 22, 18, 0.16);
+  --shadow-lg: 0 22px 56px -18px rgba(20, 22, 18, 0.26);
+
+  --font-display: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-body: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  --nav-h: 68px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}

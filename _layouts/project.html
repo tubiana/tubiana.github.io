@@ -1,0 +1,49 @@
+---
+layout: default
+---
+<header class="page-head">
+  <div class="container">
+    <a class="more" href="{{ '/research/' | relative_url }}">&larr; Back to Research</a>
+    <span class="kicker" style="display:block; margin-top:18px;">{{ page.status | default: "Project" }}{% if page.period %} · {{ page.period }}{% endif %}</span>
+    <h1>{{ page.title }}</h1>
+    {% if page.summary %}<p class="lead">{{ page.summary }}</p>{% endif %}
+  </div>
+</header>
+
+{% if page.image %}
+  <div class="container" style="padding-top: 32px;">
+    <div class="theme-media" style="max-width: 760px; margin: 0 auto;">
+      <img src="{{ page.image | relative_url }}" alt="{{ page.title }}">
+    </div>
+  </div>
+{% endif %}
+
+<div class="section">
+  <div class="container" style="max-width: 720px;">
+    {{ content }}
+
+    {% if page.collaborators %}
+      <div class="card reveal" style="margin-top: 32px;">
+        <h4 style="margin-bottom: 10px;">Collaborators</h4>
+        <p style="margin: 0; color: var(--muted);">{{ page.collaborators | join: " · " }}</p>
+      </div>
+    {% endif %}
+
+    {% if page.related_tools or page.related_publications %}
+      <div class="card reveal" style="margin-top: 20px;">
+        {% if page.related_tools %}
+          <h4 style="margin-bottom: 10px;">Related tools</h4>
+          <ul class="paper-links">
+            {% for t in page.related_tools %}<li><a href="{{ t.url | relative_url }}">{{ t.name }} →</a></li>{% endfor %}
+          </ul>
+        {% endif %}
+        {% if page.related_publications %}
+          <h4 style="margin: {% if page.related_tools %}18px 0 10px{% else %}0 0 10px{% endif %};">Related publications</h4>
+          <ul class="paper-links">
+            {% for pub in page.related_publications %}<li><a href="{{ pub.url }}" target="_blank" rel="noopener">{{ pub.label }} ↗</a></li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+</div>

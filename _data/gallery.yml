@@ -1,0 +1,190 @@
+# Gallery items, shown in this order (masonry grid).
+#
+# Photos:
+#   - type: photo
+#     image: /assets/images/gallery/filename.jpg
+#     title: "..."
+#     caption: "..."
+#
+# Videos — set youtube_id once it's uploaded to YouTube (preferred: no big
+# .mp4 files to serve); until then, video_src plays the local file instead.
+#   - type: video
+#     youtube_id: "dQw4w9WgXcQ"   # from youtube.com/watch?v=THIS_PART
+#     video_src: /assets/videos/filename.mp4   # fallback / current source
+#     thumb: /assets/images/gallery/optional-poster.jpg  # optional poster frame
+#     title: "..."
+#     caption: "..."
+- type: photo
+  image: /assets/images/gallery/render_cryomap_V2_2K.png
+  title: Illustration of a cryo-EM map
+  caption: "A cryo-EM density map, illustrated with some lighting effects."
+
+- type: photo
+  image: /assets/images/gallery/dode_on_the_floor_v3_signed.jpg
+  title: "MetY dodecamer"
+  caption: "Illustration of the HEV ORF1 MetY dodecamer with atiled floor."
+
+- type: video
+  video_src: /assets/videos/AF_GOODSELL2.mp4
+  title: "ORF1 AlphaFold model animation, Goodsell style"
+  caption: "animation of our ORF1 Alphafold model, colored per PLDDT in the style of David Goodsell."
+
+- type: photo
+  image: /assets/images/gallery/4V60_V3_Signed.jpg
+  title: "Norovirus in a bottle — PDB 4V60"
+  caption: "The VP1 dodecamer, preserved like a museum piece."
+
+- type: video
+  video_src: /assets/videos/I2BC.mp4
+  title: "I2BC, molecule by molecule"
+  caption: "The institute's name emerges from a sea of molecules."
+
+- type: photo
+  image: /assets/images/gallery/Capsid3_signed.png
+  title: "Viral capsid"
+  caption: "Atomic surface with an open portal, colored by depth."
+
+- type: video
+  video_src: /assets/videos/turn_on_neonlight.mp4
+  title: "Neon dodecamer — lights on"
+  caption: "Subunits ignite one after another."
+
+- type: photo
+  image: /assets/images/gallery/ORF1_membrane_newV2_signed.png
+  title: "HEV ORF1 in a membrane"
+  caption: "The replication polyprotein embedded in a lipid bilayer."
+
+- type: video
+  video_src: /assets/videos/molecular_complex.mp4
+  title: "Molecular complex"
+  caption: "A multi-colored assembly, in motion."
+
+- type: photo
+  image: /assets/images/gallery/6qz0_V7_s.jpg
+  title: "Virus in a bottle — PDB 6QZ0"
+  caption: "A spiked particle, corked and displayed."
+
+- type: video
+  video_src: /assets/videos/UK.mp4
+  title: "Union Jack"
+  caption: "A flag, assembled atom by atom."
+
+- type: photo
+  image: /assets/images/gallery/membrane_nathalie.jpg
+  title: "Membrane channel"
+  caption: "A channel organizing itself inside a bilayer."
+
+- type: photo
+  image: /assets/images/gallery/HEV_Bottle4_signed.jpg
+  title: "Hepatitis E in a bottle"
+  caption: "A non-enveloped virus, kept on ice."
+
+- type: photo
+  image: /assets/images/gallery/0233_signed.jpg
+  title: "Membrane pore"
+  caption: "Molecular dynamics snapshot, 50 nm scale bar."
+
+- type: video
+  video_src: /assets/videos/AF_GOODSELL_loop.mp4
+  title: "AlphaFold model — loop"
+  caption: "Seamless rotation of the same complex."
+
+- type: photo
+  image: /assets/images/gallery/chol_uptake.jpg
+  title: "Cholesterol uptake"
+  caption: "A membrane protein shuttling cholesterol."
+
+- type: video
+  video_src: /assets/videos/lanreotide_6.mp4
+  title: "A street at 50 nm"
+  caption: "An urban scene, scaled to the molecular."
+
+- type: photo
+  image: /assets/images/gallery/APOE3_v2_S.jpg
+  title: "APOE3"
+  caption: "Secondary-structure coloring, with bound ligands."
+
+- type: video
+  video_src: /assets/videos/turn_on_neonlight_loop.mp4
+  title: "Neon dodecamer — loop"
+  caption: "The lighting sequence, on repeat."
+
+- type: photo
+  image: /assets/images/gallery/4V60_V10_signed.jpg
+  title: "Norovirus in a bottle — alternate"
+  caption: "Another take on the PDB 4V60 scene."
+
+- type: photo
+  image: /assets/images/gallery/Xray_render_V3_signed.jpg
+  title: "X-ray beam"
+  caption: "A stylized diffraction experiment."
+
+- type: photo
+  image: /assets/images/gallery/2nq2_v5_s.jpg
+  title: "Protein complex — PDB 2NQ2"
+  caption: "A multi-subunit assembly on a neutral backdrop."
+
+- type: photo
+  image: /assets/images/gallery/1poa.jpg
+  title: "Transmembrane protein — PDB 1POA"
+  caption: "Ribbon diagram with a bound ligand."
+
+- type: photo
+  image: /assets/images/gallery/STARD4_V1_s.jpg
+  title: "STARD4"
+  caption: "A translucent surface study."
+
+- type: photo
+  image: /assets/images/gallery/APOE1.jpg
+  title: "APOE1"
+  caption: "The apolipoprotein, with its density."
+
+- type: video
+  video_src: /assets/videos/AF_GOODSELL2_reversed.mp4
+  title: "AlphaFold model — reversed"
+  caption: "Played in reverse, with an emphasis ring."
+
+- type: photo
+  image: /assets/images/gallery/AF_GOODSELL-STYLE_233_signed.png
+  title: "PDB 0233, Goodsell style"
+  caption: "Rendered in the iconic illustration style."
+
+- type: photo
+  image: /assets/images/gallery/Capsid3.png
+  title: "Viral capsid — variant"
+  caption: "Alternate coloring of the portal view."
+
+- type: photo
+  image: /assets/images/gallery/membrane_v0.7.1_512cycleX.jpg
+  title: "Membrane, 512 GPU cycles"
+  caption: "A large bilayer, after a long render."
+
+- type: video
+  video_src: /assets/videos/turn_on_neonlight_reverse.mp4
+  title: "Neon dodecamer — lights off"
+  caption: "The sequence, played backward."
+
+- type: photo
+  image: /assets/images/gallery/convhull_nomembrane_scaled_8.jpg
+  title: "Convex hull"
+  caption: "A membrane region wrapped in its hull, with a crystal-like defect."
+
+- type: photo
+  image: /assets/images/gallery/plastic_render_example1_signed.jpg
+  title: "Material test 01"
+  caption: "A plastic shading study."
+
+- type: photo
+  image: /assets/images/gallery/plastic_render_example2_signed.png
+  title: "Material test 02"
+  caption: "Same idea, different light."
+
+- type: photo
+  image: /assets/images/gallery/render8.jpg
+  title: "Simulation render"
+  caption: "A frame from a longer study."
+
+- type: photo
+  image: /assets/images/gallery/render_EMdensity_V0.7.jpg
+  title: "Electron density"
+  caption: "A density map brought to light."

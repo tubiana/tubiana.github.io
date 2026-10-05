@@ -1,0 +1,8 @@
+# Funders acknowledged on the homepage. To add one: copy an entry, set a
+# logo file in assets/images/funding/, and point "logo" to it.
+- name: "ANRS | Émergence des Maladies Infectieuses"
+  logo: /assets/images/funding/anrs-mie.png
+  url: "https://anrs.fr"
+- name: "Agence Nationale de la Recherche"
+  logo: /assets/images/funding/anr.png
+  url: "https://anr.fr"

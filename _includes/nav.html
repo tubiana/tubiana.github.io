@@ -1,0 +1,14 @@
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="{{ '/' | relative_url }}">
+      <span class="brand-name">{{ site.title }}</span>
+      <span class="brand-tag">{{ site.tagline }}</span>
+    </a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false"><span></span></button>
+    <ul class="nav-links">
+      {% for item in site.nav %}
+        <li><a href="{{ item.url | relative_url }}">{{ item.title }}</a></li>
+      {% endfor %}
+    </ul>
+  </div>
+</nav>
