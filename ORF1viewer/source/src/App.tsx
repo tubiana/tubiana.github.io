@@ -1,20 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from './state/store';
-import { Header } from './components/Header';
+import { ModelBand, TopBar } from './components/Header';
 import { StructurePanel } from './components/StructurePanel';
 import { AnalysisTabs } from './components/AnalysisTabs';
 import { MsaDrawer } from './components/MsaDrawer';
 import { HelpOverlay, SettingsOverlay } from './components/Overlays';
 import { SequenceSearchOverlay } from './components/SequenceSearch';
-import { Btn, ErrorBanner } from './components/ui';
+import { ErrorBanner, Spinner } from './components/ui';
 import { clamp, lsGet, lsSet } from './lib/util';
 
 export function App() {
   const manifest = useStore((s) => s.manifest);
+  const theme = useStore((s) => s.theme);
   const baseUrl = useStore((s) => s.baseUrl);
   const baseUrlHow = useStore((s) => s.baseUrlHow);
   const manifestStatus = useStore((s) => s.manifestStatus);
-  const annotations = useStore((s) => s.annotations);
   const error = useStore((s) => s.error);
   const init = useStore((s) => s.init);
   const helpOpen = useStore((s) => s.helpOpen);
@@ -30,6 +30,10 @@ export function App() {
   const [dragging, setDragging] = useState(false);
   const mainRef = useRef<HTMLDivElement | null>(null);
   const booted = useRef(false);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
 
   // boot: manifest + URL state (?model= …) live in the store's init()
   useEffect(() => {
@@ -73,7 +77,7 @@ export function App() {
         toggleMsa();
       } else if (e.key === '1') setTab('pae');
       else if (e.key === '2') setTab('plddt');
-      else if (e.key === '3') setTab('accent');
+      else if (e.key === '3') setTab('tree');
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -102,25 +106,33 @@ export function App() {
   }, [dragging]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[#070b11] text-slate-200">
-      <Header />
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-ground text-fg lg:overflow-hidden">
+      <TopBar />
 
       {error && (
-        <div className="px-2 pt-2">
+        <div className="px-4 pt-2">
           <ErrorBanner message={error} />
         </div>
       )}
 
       {manifestStatus !== 'ready' && (
         <div className="grid flex-1 place-items-center px-6">
-          <div className="flex flex-col items-center gap-3 text-center">
-            <div className="h-8 w-8 animate-pulse rounded-full border-2 border-sky-500/30 border-t-sky-400" />
-            <div className="text-[13px] text-slate-400">
-              {manifestStatus === 'error' ? 'the data payload could not be loaded' : 'loading the model catalogue…'}
-            </div>
-            <div className="max-w-[42rem] break-all text-[11px] leading-relaxed text-slate-600">
+          <div className="flex max-w-[36rem] flex-col items-center gap-3 text-center">
+            {manifestStatus === 'error' ? (
+              <>
+                <div className="text-[14px] font-semibold">The model catalogue could not be loaded</div>
+                <div className="text-muted">
+                  Check your connection, or point the viewer at another copy of the data in Settings.
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center gap-2 text-muted">
+                <Spinner size={16} /> Loading the model catalogue…
+              </div>
+            )}
+            <div className="break-all text-[12px] text-faint">
               {baseUrl || new URL('data/', document.baseURI).toString()}
-              {baseUrlHow ? ` · via ${baseUrlHow}` : ''}
+              {baseUrlHow ? ` (via ${baseUrlHow})` : ''}
             </div>
           </div>
         </div>
@@ -128,9 +140,10 @@ export function App() {
 
       {manifest && (
         <>
-          <main ref={mainRef} className="flex min-h-0 flex-1 flex-col p-2 lg:flex-row">
+          <ModelBand />
+          <main ref={mainRef} className="flex flex-col p-3 lg:min-h-0 lg:flex-1 lg:flex-row">
             <div
-              className="flex min-h-0 min-w-0 flex-col lg:basis-[var(--split)] lg:grow-0 lg:shrink"
+              className="flex min-h-[320px] min-w-0 flex-col lg:min-h-0 lg:basis-[var(--split)] lg:grow-0 lg:shrink"
               style={{ ['--split' as string]: `${ratio}%` }}
             >
               <StructurePanel />
@@ -138,6 +151,7 @@ export function App() {
             <div
               role="separator"
               aria-orientation="vertical"
+              aria-label="Resize panels"
               onPointerDown={(e) => {
                 e.preventDefault();
                 setDragging(true);
@@ -146,44 +160,23 @@ export function App() {
                 setRatio(60);
                 lsSet('orf1.split', '60');
               }}
-              title="drag to resize · double-click to reset the 60/40 split"
-              className={`hidden w-[6px] shrink-0 cursor-col-resize items-center justify-center lg:flex ${
-                dragging ? 'bg-sky-500/50' : 'hover:bg-slate-700'
-              }`}
+              title="Drag to resize, double-click to reset"
+              className="group hidden w-3 shrink-0 cursor-col-resize items-center justify-center lg:flex"
             >
-              <span className="h-9 w-[2px] rounded-full bg-slate-600 group-hover:bg-sky-400" />
+              <span
+                className={`h-10 w-[3px] rounded-full transition-colors ${
+                  dragging ? 'bg-fg' : 'bg-line group-hover:bg-line-strong'
+                }`}
+              />
             </div>
             <div
-              className="flex min-h-0 min-w-0 flex-col lg:basis-[calc(100%-var(--split)-6px)] lg:grow-0 lg:shrink"
+              className="mt-3 flex min-h-[420px] min-w-0 flex-col lg:mt-0 lg:min-h-0 lg:basis-[calc(100%-var(--split)-12px)] lg:grow-0 lg:shrink"
               style={{ ['--split' as string]: `${ratio}%` }}
             >
               <AnalysisTabs />
             </div>
           </main>
           <MsaDrawer />
-          <footer className="hidden h-[22px] shrink-0 items-center gap-3 border-t border-slate-800 px-3 text-[10.5px] text-slate-600 lg:flex">
-            <span>
-              {manifest.counts.models} AlphaFold2 ORF1 models · {manifest.hosts.length} hosts · payload built{' '}
-              {manifest.generatedAt.slice(0, 10)}
-            </span>
-            <span title={annotations.source ? annotations.source : 'annotation table not reachable'}>
-              {annotations.source
-                ? `annotation table ${annotations.patched}/${annotations.total} (${annotations.source.split('/').pop()})`
-                : 'annotations from manifest copy (?annotations=… to point elsewhere)'}
-            </span>
-            <span>
-              PAE = lossless 8-bit image + manifest LUT (<span className="text-slate-500">{manifest.pae.lutName}</span>, ≤
-              {manifest.pae.maxErrorA ?? '—'} Å) — decoded in the browser
-            </span>
-            <span className="ml-auto flex items-center gap-2">
-              <kbd>/</kbd> search <kbd>M</kbd> MSA <kbd>1</kbd>
-              <kbd>2</kbd>
-              <kbd>3</kbd> tabs <kbd>F</kbd> focus <kbd>R</kbd> camera <kbd>?</kbd> help
-              <Btn className="!py-0" onClick={() => setHelpOpen(true)}>
-                open help
-              </Btn>
-            </span>
-          </footer>
         </>
       )}
 

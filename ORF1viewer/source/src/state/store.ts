@@ -19,6 +19,7 @@ import { msaWorker } from '../lib/rpcWorker';
 import { fetchBytes, fetchText, bytesToText, debounce, gunzipBlob, lsGet, lsSet } from '../lib/util';
 import { ClusterRow, parseClusters, parseNewick, TreeNode } from '../lib/tree';
 import { FastaRecord, findClosestSequence, parseFasta } from '../lib/fastaSearch';
+import { applyTheme, initialTheme, Theme } from '../lib/theme';
 
 export type ColorMode = 'plddt' | 'plddtSmooth' | 'domain' | 'chain' | 'uniform';
 export type ReprKind =
@@ -30,7 +31,8 @@ export type ReprKind =
   | 'spacefill'
   | 'surface'
   | 'molecularSurface';
-export type TabId = 'accent' | 'pae' | 'plddt' | 'tree';
+/** `plddt` is the Domains tab (id kept so older shared links still resolve). */
+export type TabId = 'pae' | 'plddt' | 'tree';
 export type SourceKind = 'pae' | 'plddt' | 'msa' | 'domain' | 'pair';
 
 export interface Selection {
@@ -91,8 +93,13 @@ interface AppState {
   fastaLibrary: FastaRecord[] | null;
   fastaLibraryStatus: LoadPhase;
   sequenceSearchOpen: boolean;
+  /** text handed to the sequence search (e.g. a FASTA pasted into the model search box) */
+  sequenceDraft: string;
+  /** bumped to ask the 3D view to frame the current selection */
+  focusRequest: number;
 
   // ---- view options ----------------------------------------------------
+  theme: Theme;
   colorMode: ColorMode;
   repr: ReprKind;
   tab: TabId;
@@ -130,10 +137,9 @@ interface AppState {
   ) => void;
   setPaeWindow: (w: Partial<AppState['paeWindow']>) => void;
   resetPaeWindow: () => void;
+  setTheme: (t: Theme) => void;
   setColorMode: (m: ColorMode) => void;
   setRepr: (r: ReprKind) => void;
-  legendOpen: boolean;
-  setLegendOpen: (on: boolean) => void;
   setTab: (t: TabId) => void;
   setSelection: (sel: Omit<Selection, 'nonce'> | null) => void;
   selectPair: (i: number, j: number) => void;
@@ -150,7 +156,9 @@ interface AppState {
   loadMsa: () => Promise<void>;
   loadTree: () => Promise<void>;
   loadFastaLibrary: () => Promise<void>;
-  setSequenceSearchOpen: (v: boolean) => void;
+  setSequenceSearchOpen: (v: boolean, draft?: string) => void;
+  requestFocus: () => void;
+  zoomPaeToSelection: () => void;
   findModelFromSequence: (query: string) => Promise<{ id: string; pctIdentity: number } | null>;
   recomputeResidueMap: () => void;
 }
@@ -215,7 +223,10 @@ export const useStore = create<AppState>((set, get) => ({
   fastaLibrary: null,
   fastaLibraryStatus: 'idle',
   sequenceSearchOpen: false,
+  sequenceDraft: '',
+  focusRequest: 0,
 
+  theme: initialTheme(),
   colorMode: 'domain',
   repr: 'cartoon',
   tab: 'pae',
@@ -229,7 +240,6 @@ export const useStore = create<AppState>((set, get) => ({
   paeWindow: { x0: 0, y0: 0, x1: 1, y1: 1 },
   highlightSelectionVisual: true,
   molstarAdvanced: lsGet('orf1.molstarAdvanced') === '1',
-  legendOpen: lsGet('orf1.legend') !== '0',
   msaOpen: false,
   msaHeight: 260,
   helpOpen: false,
@@ -273,7 +283,9 @@ export const useStore = create<AppState>((set, get) => ({
     const id = requested && m.models.some((x) => x.id === requested) ? requested : m.models[0]?.id;
     if (id) await get().setModel(id);
     const tabParam = params.get('tab');
-    if (tabParam === 'accent' || tabParam === 'pae' || tabParam === 'plddt' || tabParam === 'tree') set({ tab: tabParam });
+    // the old 'accent' tab (static figure) now lives inside the PAE tab
+    if (tabParam === 'accent') set({ tab: 'pae' });
+    else if (tabParam === 'pae' || tabParam === 'plddt' || tabParam === 'tree') set({ tab: tabParam });
     const colorParam = params.get('color');
     if (colorParam && ['plddt', 'plddtSmooth', 'domain', 'chain', 'uniform'].includes(colorParam))
       set({ colorMode: colorParam as ColorMode });
@@ -472,7 +484,25 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  setSequenceSearchOpen: (sequenceSearchOpen) => set({ sequenceSearchOpen }),
+  setSequenceSearchOpen: (sequenceSearchOpen, draft) =>
+    set(draft !== undefined ? { sequenceSearchOpen, sequenceDraft: draft } : { sequenceSearchOpen }),
+  requestFocus: () => set({ focusRequest: get().focusRequest + 1 }),
+  zoomPaeToSelection: () => {
+    const { selection, pae } = get();
+    if (!selection || !pae) return;
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (const r of selection.ranges) {
+      lo = Math.min(lo, r.s);
+      hi = Math.max(hi, r.e);
+    }
+    if (!Number.isFinite(lo)) return;
+    const pad = Math.max(8, (hi - lo) * 0.15);
+    const s = Math.min(pae.w, Math.max(1, lo - pad));
+    const e = Math.min(pae.w, Math.max(1, hi + pad));
+    set({ paeWindow: { x0: (s - 1) / pae.w, x1: e / pae.w, y0: (s - 1) / pae.h, y1: e / pae.h }, tab: 'pae' });
+    syncUrl(get());
+  },
 
   findModelFromSequence: async (query) => {
     await get().loadFastaLibrary();
@@ -491,15 +521,15 @@ export const useStore = create<AppState>((set, get) => ({
   setPaeWindow: (w) => set({ paeWindow: { ...get().paeWindow, ...w } }),
   resetPaeWindow: () => set({ paeWindow: { x0: 0, y0: 0, x1: 1, y1: 1 } }),
 
+  setTheme: (theme) => {
+    applyTheme(theme);
+    set({ theme });
+  },
   setColorMode: (colorMode) => {
     set({ colorMode });
     syncUrl(get());
   },
   setRepr: (repr) => set({ repr }),
-  setLegendOpen: (legendOpen) => {
-    lsSet('orf1.legend', legendOpen ? '1' : '0');
-    set({ legendOpen });
-  },
   setTab: (tab) => {
     set({ tab });
     syncUrl(get());

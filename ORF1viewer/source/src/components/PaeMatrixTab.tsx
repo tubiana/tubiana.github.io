@@ -8,12 +8,14 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
-import { Btn, Select, Spinner, Toggle } from './ui';
+import { Icon, IconBtn, MenuDivider, MenuItem, MenuLabel, Popover, Select, Spinner, Toggle } from './ui';
+import { OriginalFigureDialog } from './AnalysisTabs';
+import { CANVAS_FONT, canvasPalette } from '../lib/theme';
 import { PAE_COLORMAPS, bandTable, colormapTable } from '../lib/colormap';
 import { Range, regionStats } from '../lib/pae';
 import { clamp, downloadCanvasPng, fmt, rafThrottle } from '../lib/util';
 
-const MARGIN = { l: 54, r: 10, t: 10, b: 34 };
+const MARGIN = { l: 54, r: 14, t: 14, b: 36 };
 
 function useSize(ref: React.RefObject<HTMLElement | null>) {
   const [size, setSize] = useState({ w: 0, h: 0 });
@@ -66,8 +68,10 @@ export function PaeMatrixTab() {
   const length = model?.length ?? 0;
 
   const view = useStore((s) => s.paeWindow);
-  const setView = useStore((s) => s.setPaeWindow);
   const resetView = useStore((s) => s.resetPaeWindow);
+  const zoomToSelection = useStore((s) => s.zoomPaeToSelection);
+  const theme = useStore((s) => s.theme);
+  const [figureOpen, setFigureOpen] = useState(false);
   const size = useSize(hostRef);
 
   // The zoom window `view` is normalised (0..1) over the whole matrix, while
@@ -186,9 +190,10 @@ export function PaeMatrixTab() {
     const { rect, toPx } = geo;
     const w = size.w;
     const h = size.h;
+    const pal = canvasPalette();
 
     // frame
-    ctx.strokeStyle = 'rgba(148,163,184,.5)';
+    ctx.strokeStyle = pal.lineStrong;
     ctx.lineWidth = 1;
     ctx.strokeRect(rect.x - .5, rect.y - .5, rect.size + 1, rect.size + 1);
 
@@ -214,7 +219,8 @@ export function PaeMatrixTab() {
           ctx.fillRect(rect.x - strip - 2, Math.max(rect.y, ty), strip, Math.min(rect.y + rect.size, ty + th) - Math.max(rect.y, ty));
         }
         // grid lines at borders
-        ctx.strokeStyle = 'rgba(226,232,240,.14)';
+        ctx.strokeStyle = pal.hoverLine;
+        ctx.globalAlpha = 0.35;
         ctx.setLineDash([3, 3]);
         ctx.beginPath();
         for (const px of [xs.x, xe.x]) {
@@ -231,12 +237,13 @@ export function PaeMatrixTab() {
         }
         ctx.stroke();
         ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
       }
     }
 
     // axis ticks
-    ctx.fillStyle = 'rgba(148,163,184,.9)';
-    ctx.font = '10px ui-monospace, SFMono-Regular, Menlo, monospace';
+    ctx.fillStyle = pal.muted;
+    ctx.font = `11px ${CANVAS_FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     const n = pae?.w ?? 1;
@@ -246,7 +253,7 @@ export function PaeMatrixTab() {
       const p = toPx(v, 0);
       if (p.x < rect.x - 1 || p.x > rect.x + rect.size + 1) continue;
       ctx.fillText(String(Math.round(v)), p.x, rect.y + rect.size + 4);
-      ctx.strokeStyle = 'rgba(148,163,184,.25)';
+      ctx.strokeStyle = pal.lineStrong;
       ctx.beginPath();
       ctx.moveTo(p.x, rect.y + rect.size);
       ctx.lineTo(p.x, rect.y + rect.size + 3);
@@ -260,34 +267,35 @@ export function PaeMatrixTab() {
       const p = toPx(0, v);
       if (p.y < rect.y - 1 || p.y > rect.y + rect.size + 1) continue;
       ctx.fillText(String(Math.round(v)), rect.x - 12, p.y);
-      ctx.strokeStyle = 'rgba(148,163,184,.25)';
+      ctx.strokeStyle = pal.lineStrong;
       ctx.beginPath();
       ctx.moveTo(rect.x - 3, p.y);
       ctx.lineTo(rect.x, p.y);
       ctx.stroke();
     }
     // axis titles
-    ctx.fillStyle = 'rgba(100,116,139,.95)';
+    ctx.fillStyle = pal.muted;
+    ctx.font = `12px ${CANVAS_FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillText('residue j — frame of reference', rect.x + rect.size / 2, h - 2);
+    ctx.fillText('Aligned residue j', rect.x + rect.size / 2, h - 2);
     ctx.save();
-    ctx.translate(9, rect.y + rect.size / 2);
+    ctx.translate(12, rect.y + rect.size / 2);
     ctx.rotate(-Math.PI / 2);
-    ctx.fillText('residue i — position', 0, 0);
+    ctx.fillText('Scored residue i', 0, 0);
     ctx.restore();
 
     // selection rectangles
     if (selection) {
       for (const r of selection.ranges) {
-        drawAxisBand(ctx, rect, toPx, r, 'rgba(56,189,248,.4)');
+        drawAxisBand(ctx, rect, toPx, r, pal.selLine);
       }
       if (selection.cross) {
         const a = selection.cross.a;
         const b = selection.cross.b;
         const p0 = toPx(b.s - 1, a.s - 1);
         const p1 = toPx(b.e, a.e);
-        ctx.strokeStyle = 'rgba(250,204,21,.95)';
+        ctx.strokeStyle = pal.fg;
         ctx.lineWidth = 1.5;
         ctx.strokeRect(
           Math.min(p0.x, p1.x),
@@ -301,7 +309,7 @@ export function PaeMatrixTab() {
     // crosshair + hovered cell
     if (cursor) {
       const cx = toPx(cursor.j + 0.5, cursor.i + 0.5);
-      ctx.strokeStyle = 'rgba(226,232,240,.55)';
+      ctx.strokeStyle = pal.hoverLine;
       ctx.setLineDash([2, 3]);
       ctx.beginPath();
       ctx.moveTo(rect.x, cx.y);
@@ -312,7 +320,7 @@ export function PaeMatrixTab() {
       ctx.setLineDash([]);
       const cw = rect.size / ((view.x1 - view.x0) * (pae?.w ?? 1));
       const chh = rect.size / ((view.y1 - view.y0) * (pae?.h ?? 1));
-      ctx.strokeStyle = '#fde047';
+      ctx.strokeStyle = pal.fg;
       ctx.lineWidth = 1.2;
       ctx.strokeRect(cx.x - cw / 2, cx.y - chh / 2, Math.max(3, cw), Math.max(3, chh));
     }
@@ -322,14 +330,14 @@ export function PaeMatrixTab() {
     if (drag) {
       const x0 = Math.min(drag.x0, drag.x1);
       const y0 = Math.min(drag.y0, drag.y1);
-      ctx.strokeStyle = '#38bdf8';
-      ctx.fillStyle = 'rgba(56,189,248,.12)';
+      ctx.strokeStyle = pal.selLine;
+      ctx.fillStyle = pal.selFill;
       ctx.lineWidth = 1;
       ctx.fillRect(x0, y0, drag.x1 - x0, drag.y1 - y0);
       ctx.strokeRect(x0, y0, drag.x1 - x0, drag.y1 - y0);
     }
     void w;
-  }, [size.w, size.h, geo, selection, cursor, pae, view, model, showDomains, dragTick]);
+  }, [size.w, size.h, geo, selection, cursor, pae, view, model, showDomains, dragTick, theme]);
 
   // ------------------------------------------------------------- pointer
   const onMove = useCallback(
@@ -416,46 +424,13 @@ export function PaeMatrixTab() {
     [pae, geo, setSelection]
   );
 
-  const zoomToSelection = () => {
-    if (!selection || !pae) return;
-    let lo = Infinity;
-    let hi = -Infinity;
-    for (const r of selection.ranges) {
-      lo = Math.min(lo, r.s);
-      hi = Math.max(hi, r.e);
-    }
-    if (!Number.isFinite(lo)) return;
-    const pad = Math.max(8, (hi - lo) * 0.15);
-    const s = clamp(lo - pad, 1, pae.w);
-    const e = clamp(hi + pad, 1, pae.w);
-    setView({ x0: (s - 1) / pae.w, x1: e / pae.w, y0: (s - 1) / pae.h, y1: e / pae.h });
-  };
   // keep the window valid when the chain length changes (model switch)
   useEffect(() => {
     if (view.x1 - view.x0 > 1 || view.x0 < 0 || view.x1 > 1.0001) resetView();
   }, [view, resetView]);
 
   const exportPng = async () => {
-    await downloadCanvasPng([plotRef.current, overlayRef.current], `ORF1_${model?.id ?? 'model'}_PAE.png`);
-  };
-
-  const copyDomainMatrix = async () => {
-    if (!pae || !lut || !model) return;
-    const doms = model.domains;
-    const lines = ['\t' + doms.map((d) => d.name).join('\t')];
-    for (const a of doms) {
-      const row = [a.name];
-      for (const b of doms) {
-        const st = regionStats(pae, lut, { s: a.start, e: a.end }, { s: b.start, e: b.end });
-        row.push(Number.isFinite(st.mean) ? st.mean.toFixed(2) : '');
-      }
-      lines.push(row.join('\t'));
-    }
-    try {
-      await navigator.clipboard.writeText(lines.join('\n'));
-    } catch {
-      console.warn('clipboard unavailable');
-    }
+    await downloadCanvasPng([plotRef.current, overlayRef.current], `ORF1_${model?.id ?? 'model'}_PAE.png`, canvasPalette().bg);
   };
 
   // selection stats
@@ -466,18 +441,18 @@ export function PaeMatrixTab() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-slate-800 px-2 py-1.5">
+      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5">
         <Select
           value={colormap as any}
           options={[
             ...PAE_COLORMAPS.map((m) => ({ value: m.name as any, label: m.label })),
-            { value: 'bands' as any, label: 'Bands 5/12/20 Å' },
+            { value: 'bands' as any, label: 'Bands at 5, 12, 20 Å' },
           ]}
           onChange={(v) => setPaeView({ paeColormap: v as string })}
-          title="colour map"
+          title="Colour map"
         />
-        <label className="flex items-center gap-1 text-[11px] text-slate-400">
-          max
+        <label className="flex items-center gap-2 text-[12px] text-muted" title="Errors at or above this value get the last colour">
+          <ColorBar mode={colormap} scaleMax={scaleMax} />
           <input
             type="range"
             min={5}
@@ -485,66 +460,77 @@ export function PaeMatrixTab() {
             step={1}
             value={scaleMax}
             onChange={(e) => setPaeView({ paeScaleMax: Number(e.target.value) })}
-            className="w-24"
+            className="w-20"
+            aria-label="Colour scale maximum (Å)"
           />
-          <span className="tabular w-8 text-slate-300">{scaleMax}Å</span>
+          <span className="w-9 text-fg">{scaleMax} Å</span>
         </label>
-        <ColorBar mode={colormap} scaleMax={scaleMax} />
-        <Toggle
-          checked={muteHigh}
-          onChange={(v) => setPaeView({ paeMuteHigh: v })}
-          label="mute background"
-          title="draw cells with PAE above the scale limit flat — the convention of the AlphaFold PAE figures"
-        />
-        <Select
-          value={symmetry}
-          options={[
-            { value: 'full', label: 'full matrix' },
-            { value: 'upper', label: 'upper ▵' },
-            { value: 'lower', label: 'lower ▿' },
-          ]}
-          onChange={(v) => setPaeView({ paeSymmetry: v as any })}
-          title="which half to display (the matrix is asymmetric)"
-        />
-        <Toggle
-          checked={invertY}
-          onChange={(v) => setPaeView({ paeInvertY: v })}
-          label="y↑ top"
-          title="row 1 at the top (default, matches the static figures)"
-        />
-        <Toggle
-          checked={showDomains}
-          onChange={(v) => setPaeView({ paeShowDomains: v })}
-          label="domains"
-          title="domain strips + boundary guides"
-        />
-        <span className="ml-auto flex items-center gap-1">
-          <Btn onClick={resetView} title="show the whole matrix">
-            ⤢ all
-          </Btn>
-          <Btn onClick={zoomToSelection} disabled={!selection} title="zoom into the selected residue span">
-            ⌕ zoom sel
-          </Btn>
-          <Btn onClick={() => void copyDomainMatrix()} title="copy the domain × domain mean-PAE table (TSV)">
-            ⧉ domain×domain PAE
-          </Btn>
-          <Btn onClick={() => void exportPng()} title="save this view (matrix + domain strips + guides) as a PNG">
-            ◍ PNG
-          </Btn>
+        <Popover
+          trigger={({ open, toggle }) => (
+            <button type="button" className="btn" data-active={open ? 'true' : 'false'} onClick={toggle} aria-expanded={open}>
+              Display <Icon name="chevronDown" size={14} />
+            </button>
+          )}
+          panelClassName="w-[16rem]"
+        >
+          <div className="flex flex-col gap-2.5 px-2 py-2">
+            <Toggle
+              checked={muteHigh}
+              onChange={(v) => setPaeView({ paeMuteHigh: v })}
+              label="Leave errors above the scale blank"
+              title="The convention of the AlphaFold PAE figures: confident blocks stand out"
+            />
+            <Toggle checked={showDomains} onChange={(v) => setPaeView({ paeShowDomains: v })} label="Domain strips and borders" />
+            <Toggle checked={invertY} onChange={(v) => setPaeView({ paeInvertY: v })} label="Residue 1 at the top" />
+          </div>
+          <MenuLabel>Show</MenuLabel>
+          <div className="px-2 pb-2">
+            <Select
+              value={symmetry}
+              options={[
+                { value: 'full', label: 'Whole matrix' },
+                { value: 'upper', label: 'Upper triangle' },
+                { value: 'lower', label: 'Lower triangle' },
+              ]}
+              onChange={(v) => setPaeView({ paeSymmetry: v as any })}
+              title="Which half to show (the matrix is not symmetric)"
+              className="w-full"
+            />
+          </div>
+        </Popover>
+        <span className="ml-auto flex items-center gap-0.5">
+          <IconBtn icon="zoomIn" label="Zoom to the selection" onClick={zoomToSelection} disabled={!selection} />
+          <IconBtn icon="zoomOut" label="Show the whole matrix" onClick={resetView} disabled={view.x0 === 0 && view.x1 === 1 && view.y0 === 0 && view.y1 === 1} />
+          <Popover
+            align="right"
+            trigger={({ open, toggle }) => <IconBtn icon="more" label="More" active={open} onClick={toggle} />}
+          >
+            {(close) => (
+              <>
+                <MenuItem icon="image" onClick={() => { setFigureOpen(true); close(); }} disabled={!model?.accentuatedPaePath}>
+                  Original AlphaFold figure
+                </MenuItem>
+                <MenuDivider />
+                <MenuItem icon="download" onClick={() => { void exportPng(); close(); }} hint=".png">
+                  Save this view
+                </MenuItem>
+              </>
+            )}
+          </Popover>
         </span>
       </div>
 
       <div ref={hostRef} className="relative min-h-0 flex-1 select-none">
         {status === 'loading' && (
-          <div className="absolute inset-0 grid place-items-center text-[12px] text-slate-400">
+          <div className="absolute inset-0 grid place-items-center text-muted">
             <span className="flex items-center gap-2">
-              <Spinner size={14} /> decoding the PAE matrix…
+              <Spinner size={14} /> Decoding the PAE matrix…
             </span>
           </div>
         )}
         {status === 'error' && (
-          <div className="absolute inset-0 grid place-items-center px-6 text-center text-[12px] text-rose-300">
-            the PAE matrix for this model could not be loaded
+          <div className="absolute inset-0 grid place-items-center px-6 text-center text-danger">
+            The PAE matrix for this model could not be loaded. Check the data source in Settings.
           </div>
         )}
         {pae && (
@@ -569,6 +555,7 @@ export function PaeMatrixTab() {
       </div>
 
       <Readout stats={stats} length={length} />
+      {figureOpen && <OriginalFigureDialog onClose={() => setFigureOpen(false)} />}
     </div>
   );
 }
@@ -578,8 +565,8 @@ function ColorBar({ mode, scaleMax }: { mode: string; scaleMax: number }) {
   useEffect(() => {
     const c = ref.current;
     if (!c) return;
-    const w = 128;
-    const h = 9;
+    const w = 96;
+    const h = 8;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     c.width = Math.floor(w * dpr);
     c.height = Math.floor(h * dpr);
@@ -595,10 +582,9 @@ function ColorBar({ mode, scaleMax }: { mode: string; scaleMax: number }) {
     }
   }, [mode, scaleMax]);
   return (
-    <span className="flex items-center gap-1" title="colour scale">
-      <span className="text-[10px] tabular text-slate-500">0</span>
-      <canvas ref={ref} style={{ width: 128, height: 9, borderRadius: 3, border: '1px solid rgba(100,116,139,.4)' }} />
-      <span className="text-[10px] tabular text-slate-400">{scaleMax}Å</span>
+    <span className="flex items-center gap-1.5">
+      <span>0</span>
+      <canvas ref={ref} style={{ width: 96, height: 8, borderRadius: 2 }} />
     </span>
   );
 }
@@ -623,55 +609,30 @@ const hoverThrottle = rafThrottle(
 
 function Readout({
   stats,
-  length,
 }: {
   stats: ReturnType<typeof regionStats> | null;
   length: number;
 }) {
   const cursor = useStore((s) => s.cursor);
-  const selection = useStore((s) => s.selection);
-  const lut = useStore((s) => s.lut);
-  void lut;
+  const V = ({ children }: { children: React.ReactNode }) => <b className="font-semibold text-fg">{children}</b>;
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-800 px-2 py-1.5 text-[11px]">
-      {cursor ?
-        <>
-          <span className="chip">
-            i <b className="tabular ml-1">{cursor.i + 1}</b>
+    <div className="flex h-9 shrink-0 items-center gap-x-4 overflow-hidden border-t border-line px-4 text-[12.5px] text-muted">
+      {cursor ? (
+        <span className="truncate">
+          Residue <V>{cursor.i + 1}</V> relative to <V>{cursor.j + 1}</V>: <V>{fmt(cursor.v, 1)} Å</V>
+          <span title="The matrix is not symmetric: the value for the transposed pair">
+            {' '}
+            (reverse <V>{fmt(cursor.vt, 1)} Å</V>)
           </span>
-          <span className="chip">
-            j <b className="tabular ml-1">{cursor.j + 1}</b>
-          </span>
-          <span className="chip">
-            PAE(i,j) <b className="tabular ml-1">{fmt(cursor.v, 2)} Å</b>
-          </span>
-          <span className="chip" title="the raw matrix is asymmetric — value for the transposed pair">
-            PAE(j,i) <b className="tabular ml-1">{fmt(cursor.vt, 2)} Å</b>
-          </span>
-        </>
-      : <span className="text-slate-500">hover the matrix for residue / PAE readout</span>}
-      {selection && (
-        <span className="chip" title={selection.label}>
-          sel <b className="ml-1">{selection.ranges.map((r) => (r.s === r.e ? r.s : `${r.s}–${r.e}`)).join(' , ')}</b>
         </span>
+      ) : stats && stats.n > 0 ? (
+        <span className="truncate">
+          Selected block: mean <V>{fmt(stats.mean, 1)} Å</V>, <V>{(stats.fracLt5 * 100).toFixed(0)}%</V> of pairs under 5 Å,{' '}
+          <V>{(stats.fracLt12 * 100).toFixed(0)}%</V> under 12 Å
+        </span>
+      ) : (
+        <span className="truncate">Hover for values. Click a cell to select a residue pair, drag to select a block.</span>
       )}
-      {stats && stats.n > 0 && (
-        <>
-          <span className="chip">
-            mean <b className="tabular ml-1">{fmt(stats.mean, 2)} Å</b>
-          </span>
-          <span className="chip">
-            &lt;5 Å <b className="tabular ml-1">{(stats.fracLt5 * 100).toFixed(1)}%</b>
-          </span>
-          <span className="chip">
-            &lt;12 Å <b className="tabular ml-1">{(stats.fracLt12 * 100).toFixed(1)}%</b>
-          </span>
-          <span className="chip">
-            pairs <b className="tabular ml-1">{stats.n.toLocaleString()}</b>
-          </span>
-        </>
-      )}
-      <span className="ml-auto text-slate-600">{length} residues · click a cell = pair, drag = region</span>
     </div>
   );
 }

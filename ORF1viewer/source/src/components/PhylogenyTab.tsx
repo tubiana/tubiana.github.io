@@ -140,33 +140,32 @@ export function PhylogenyTab() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b border-slate-800 px-2 py-1.5 text-[11px] text-slate-400">
-        <span className="font-medium text-slate-300">ICTV Hepeviridae reference phylogeny</span>
-        <span>{layout.leaves.length} reference sequences</span>
+      <div className="flex shrink-0 flex-wrap items-baseline gap-x-4 gap-y-1 px-4 py-2.5 text-[12.5px]">
+        <span className="font-semibold">ICTV Hepeviridae reference tree</span>
+        <span className="text-muted">{layout.leaves.length} reference sequences</span>
         {model && (
-          <span className="ml-auto">
+          <span className="ml-auto text-muted">
             {clusterRow ? (
               <>
-                current model clusters with{' '}
-                <b className="text-sky-300">{clusterRow.nodeNucl}</b> · {fmtPct(clusterRow.pctId)}% identity
+                This model is closest to <b className="text-fg">{clusterRow.nodeNucl}</b>, {fmtPct(clusterRow.pctId)}% identity
               </>
             ) : (
-              <span className="text-slate-500">no cluster assignment for this model</span>
+              'This model has no reference assignment'
             )}
           </span>
         )}
       </div>
-      <div ref={scrollRef} className="canvas-scroll min-h-0 flex-1 overflow-auto bg-[#0a0e14]">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto border-t border-line">
         <svg width={width} height={height} className="block" style={{ minWidth: width }}>
-          <text x={PAD.l} y={16} className="fill-slate-400" style={{ font: '600 10.5px system-ui' }}>
+          <text x={PAD.l} y={16} fill="var(--muted)" style={{ font: '600 11.5px var(--font-sans)' }}>
             reference sequences
           </text>
           <text
             x={labelX + LABEL_W + SPECIES_W / 2}
             y={16}
             textAnchor="middle"
-            className="fill-slate-400"
-            style={{ font: '600 10.5px system-ui', fontStyle: 'italic' }}
+            fill="var(--muted)"
+            style={{ font: '600 11.5px var(--font-sans)', fontStyle: 'italic' }}
           >
             species
           </text>
@@ -174,8 +173,8 @@ export function PhylogenyTab() {
             x={labelX + LABEL_W + SPECIES_W + GENUS_W / 2}
             y={16}
             textAnchor="middle"
-            className="fill-slate-400"
-            style={{ font: '600 10.5px system-ui', fontStyle: 'italic' }}
+            fill="var(--muted)"
+            style={{ font: '600 11.5px var(--font-sans)', fontStyle: 'italic' }}
           >
             genus
           </text>
@@ -189,7 +188,7 @@ export function PhylogenyTab() {
                 x2={plotX(e.x1)}
                 y1={e.y}
                 y2={e.y}
-                stroke="#475569"
+                stroke="var(--line-strong)"
                 strokeWidth={1.2}
               />
             ))}
@@ -200,7 +199,7 @@ export function PhylogenyTab() {
                 x2={plotX(v.x)}
                 y1={v.yTop}
                 y2={v.yBot}
-                stroke="#475569"
+                stroke="var(--line-strong)"
                 strokeWidth={1.2}
               />
             ))}
@@ -213,8 +212,8 @@ export function PhylogenyTab() {
                   x={plotX(e.x0) - 3}
                   y={e.y - 3}
                   textAnchor="end"
-                  className="fill-slate-600"
-                  style={{ font: '9px system-ui' }}
+                  fill="var(--faint)"
+                  style={{ font: '10px var(--font-sans)' }}
                 >
                   {e.support}
                 </text>
@@ -238,8 +237,7 @@ export function PhylogenyTab() {
                       y={-ROW_H / 2}
                       width={width}
                       height={ROW_H}
-                      fill="#0ea5e9"
-                      opacity={0.14}
+                      fill="var(--sel-fill)"
                     />
                   )}
                   {tipX < labelX - 2 && (
@@ -248,7 +246,7 @@ export function PhylogenyTab() {
                       x2={labelX}
                       y1={0}
                       y2={0}
-                      stroke="#334155"
+                      stroke="var(--line)"
                       strokeDasharray="1.5,2"
                       strokeWidth={1}
                     />
@@ -258,16 +256,15 @@ export function PhylogenyTab() {
                     cy={0}
                     r={DOT_R}
                     fill={info.color}
-                    stroke={info.color === '#e5e7eb' ? '#64748b' : 'none'}
+                    stroke={info.color === '#e5e7eb' ? 'var(--faint)' : 'none'}
                     strokeWidth={1}
                   />
                   <text
                     x={labelX + 8}
                     y={3.5}
-                    className={isHighlighted ? 'fill-sky-200' : 'fill-slate-300'}
-                    style={{ font: isHighlighted ? '600 11px system-ui' : '11px system-ui' }}
+                    fill={isHighlighted ? 'var(--fg)' : 'var(--muted)'}
+                    style={{ font: isHighlighted ? '700 12px var(--font-sans)' : '12px var(--font-sans)' }}
                   >
-                    {isHighlighted ? '▶ ' : ''}
                     {leaf.node.name ? displayLeafLabel(leaf.node.name) : ''}
                   </text>
                 </g>
@@ -284,18 +281,17 @@ export function PhylogenyTab() {
           </g>
         </svg>
       </div>
-      <div className="shrink-0 border-t border-slate-800 px-2 py-1.5 text-[10.5px] leading-relaxed text-slate-500">
-        Reference topology and taxon assignments follow the{' '}
+      <div className="shrink-0 border-t border-line px-4 py-2 text-[12px] text-muted">
+        Topology, taxa and dot colours follow the{' '}
         <a
           href="https://ictv.global/report/chapter/hepeviridae/hepeviridae"
           target="_blank"
           rel="noreferrer"
-          className="text-sky-400 hover:underline"
+          className="text-fg underline decoration-line-strong underline-offset-2 hover:decoration-fg"
         >
           ICTV Hepeviridae report
         </a>
-        . Dot colours mirror the ICTV figure legend. Cluster assignment (which reference leaf each model is closest
-        to) comes from <span className="text-slate-400">metadata/ICTV_ORF1s_clusters.csv</span>.
+        .
       </div>
     </div>
   );
@@ -306,12 +302,12 @@ function BracketColumn({ x, run, italic }: { x: number; run: { label: string; y0
   const single = run.y0 === run.y1;
   return (
     <g>
-      <line x1={x} x2={x} y1={run.y0 - ROW_H / 2 + 2} y2={run.y1 + ROW_H / 2 - 2} stroke="#334155" strokeWidth={1.2} />
+      <line x1={x} x2={x} y1={run.y0 - ROW_H / 2 + 2} y2={run.y1 + ROW_H / 2 - 2} stroke="var(--line-strong)" strokeWidth={1.2} />
       <text
         x={x + 8}
         y={yMid + 3.5}
-        className="fill-slate-300"
-        style={{ font: `${italic ? 'italic ' : ''}11px system-ui` }}
+        fill="var(--fg)"
+        style={{ font: `${italic ? 'italic ' : ''}12px var(--font-sans)` }}
       >
         {run.label}
       </text>

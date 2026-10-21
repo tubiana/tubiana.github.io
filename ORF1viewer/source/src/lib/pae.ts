@@ -129,10 +129,11 @@ export function colorize(m: PaeMatrix, o: PaeColorOptions): void {
     if (o.muteHigh && v >= o.scaleMax) {
       // AlphaFold convention: where the relative placement is undefined the
       // background stays flat, so the confident blocks are what stands out.
+      // transparent: the panel background shows through, so it follows the theme
       rgba[q] = PAE_MUTED_RGB[0];
       rgba[q + 1] = PAE_MUTED_RGB[1];
       rgba[q + 2] = PAE_MUTED_RGB[2];
-      rgba[q + 3] = 255;
+      rgba[q + 3] = 0;
       continue;
     }
     rgba[q] = table[o0];

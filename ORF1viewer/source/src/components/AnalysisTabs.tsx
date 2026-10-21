@@ -1,148 +1,85 @@
 /**
- * Right-hand analysis panel: interactive PAE matrix · 1D pLDDT + domain table ·
- * the original “accentuated PAE” figure.
+ * Right-hand analysis panel: interactive PAE matrix · domains (pLDDT profile,
+ * per-domain table, domain × domain PAE) · reference phylogeny.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useStore, type TabId } from '../state/store';
 import { PaeMatrixTab } from './PaeMatrixTab';
 import { PlddtTab } from './PlddtTab';
 import { PhylogenyTab } from './PhylogenyTab';
-import { Badge, Btn, Select, Spinner, Tabs } from './ui';
-import { fmt } from '../lib/util';
+import { Modal } from './Overlays';
+import { Btn, Icon, Spinner, Tabs } from './ui';
 import { currentDataUrl } from '../lib/dataSource';
 
 export function AnalysisTabs() {
   const tab = useStore((s) => s.tab);
   const setTab = useStore((s) => s.setTab);
   return (
-    <div className="card flex min-h-0 flex-1 flex-col">
-      {/* the tab strip is the only child: no long model name to squeeze it, so every
-          tab — including “Reference tree” — stays visible at once */}
-      <div className="flex min-w-0 shrink-0 items-end gap-2 border-b border-slate-800 px-2 pt-1">
+    <div className="panel flex min-h-0 flex-1 flex-col">
+      <div className="flex shrink-0 items-end border-b border-line px-4">
         <Tabs<TabId>
           value={tab}
           onChange={setTab}
           items={[
-            { id: 'pae', label: 'PAE matrix' },
-            { id: 'plddt', label: 'pLDDT & domains' },
-            { id: 'accent', label: 'Accentuated PAE' },
-            { id: 'tree', label: 'Reference tree' },
+            { id: 'pae', label: 'PAE', hint: 'Predicted aligned error matrix (1)' },
+            { id: 'plddt', label: 'Domains', hint: 'pLDDT profile and per-domain confidence (2)' },
+            { id: 'tree', label: 'Phylogeny', hint: 'ICTV Hepeviridae reference tree (3)' },
           ]}
         />
       </div>
       <div className="min-h-0 flex-1">
         {tab === 'pae' && <PaeMatrixTab />}
         {tab === 'plddt' && <PlddtTab />}
-        {tab === 'accent' && <AccentuatedTab />}
         {tab === 'tree' && <PhylogenyTab />}
       </div>
     </div>
   );
 }
 
-function AccentuatedTab() {
+/** The accentuated PAE figure produced by the AlphaFold pipeline, as shipped. */
+export function OriginalFigureDialog({ onClose }: { onClose: () => void }) {
   const model = useStore((s) => s.model);
   const downloadCurrent = useStore((s) => s.downloadCurrent);
-  const [fit, setFit] = useState<'contain' | 'actual' | 'width'>('contain');
-  const [zoom, setZoom] = useState(1);
-  const imgRef = useRef<HTMLImageElement | null>(null);
-  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
   const [err, setErr] = useState(false);
-  const resolvedSrc = model?.accentuatedPaePath ? currentDataUrl(model.accentuatedPaePath) : null;
-  useEffect(() => {
-    setErr(false);
-    setNatural(null);
-  }, [resolvedSrc]);
-
+  const src = model?.accentuatedPaePath ? currentDataUrl(model.accentuatedPaePath) : null;
+  useEffect(() => setErr(false), [src]);
   if (!model) return null;
-  // artifact paths in the manifest are relative to the data root, which may be
-  // another host entirely — always resolve them
-  const src = model.accentuatedPaePath ? currentDataUrl(model.accentuatedPaePath) : null;
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 px-2 py-1.5">
-        <Select
-          value={fit}
-          options={[
-            { value: 'contain', label: 'fit' },
-            { value: 'width', label: 'page width' },
-            { value: 'actual', label: '100 %' },
-          ]}
-          onChange={(v) => setFit(v as any)}
-        />
-        <input
-          type="range"
-          min={0.3}
-          max={5}
-          step={0.05}
-          value={zoom}
-          onChange={(e) => {
-            setFit('actual');
-            setZoom(Number(e.target.value));
-          }}
-          className="w-28"
-          title="zoom"
-        />
-        <Btn onClick={() => void downloadCurrent('paeImage')} title="download the original WebP figure">
-          ↓ figure
-        </Btn>
-        <span className="ml-auto flex items-center gap-1.5">
-          <Badge label="⟨PAE⟩" value={fmt(model.meanPae, 2)} title="mean predicted aligned error, whole matrix" />
-          <Badge label="pTM" value={model.pTM != null ? model.pTM.toFixed(3) : '—'} />
-          {natural && (
-            <span className="text-[10.5px] text-slate-500">
-              {natural.w}×{natural.h} px
-            </span>
-          )}
-        </span>
-      </div>
-      <div className="canvas-scroll min-h-0 flex-1 overflow-auto bg-[#0a0e14] p-3">
+    <Modal title="Original PAE figure" onClose={onClose} wide>
+      <p className="mb-3 text-muted">
+        The accentuated PAE figure written by the AlphaFold pipeline for {model.accession || model.id}. Axes are residue
+        numbers; black crosshairs mark each residue’s error toward its immediate neighbours.
+      </p>
+      <div className="grid min-h-[16rem] place-items-center rounded-md bg-white p-2">
         {!src ? (
-          <div className="grid h-full place-items-center text-[12px] text-slate-500">
-            this model has no accentuated PAE figure
-          </div>
+          <span className="text-[#56616e]">This model has no original figure.</span>
         ) : err ? (
-          <div className="grid h-full place-items-center text-[12px] text-rose-300">
-            could not load the figure — the data root may be unreachable (⚙ settings)
-          </div>
+          <span className="text-[#b3261e]">The figure could not be loaded. Check the data source in Settings.</span>
         ) : (
           <img
-            ref={imgRef}
             key={src}
             src={src}
-            alt={`accentuated PAE for ${model.id}`}
-            onLoad={(e) => {
-              const t = e.currentTarget;
-              setNatural({ w: t.naturalWidth, h: t.naturalHeight });
-            }}
+            alt={`Accentuated PAE figure for ${model.id}`}
             onError={() => setErr(true)}
-            style={
-              fit === 'contain' ?
-                { width: '100%', height: '100%', objectFit: 'contain', imageRendering: 'auto' }
-              : fit === 'width' ?
-                { width: '100%', height: 'auto', imageRendering: 'auto' }
-              : { width: `${(zoom * 100).toFixed(0)}%`, height: 'auto', imageRendering: 'auto' }
-            }
-            className="mx-auto rounded-md bg-white shadow-lg shadow-black/40"
-            loading="lazy"
+            className="max-h-[70vh] w-auto max-w-full"
             draggable={false}
           />
         )}
       </div>
-      <div className="shrink-0 border-t border-slate-800 px-2 py-1.5 text-[10.5px] leading-relaxed text-slate-500">
-        Figure as produced by the AlphaFold pipeline (<span className="text-slate-400">accentuated_pae.svg</span>,
-        re-encoded to WebP: same geometry, lossy colours, ~48× smaller than the PNG). Axes are residue indices;
-        background = inter-residue PAE, black crosshairs mark each residue’s PAE toward its immediate neighbours.
+      <div className="mt-3 flex justify-end">
+        <Btn onClick={() => void downloadCurrent('paeImage')} disabled={!src}>
+          <Icon name="download" size={15} /> Download figure
+        </Btn>
       </div>
-    </div>
+    </Modal>
   );
 }
 
 /** Small overlay used while the panel data is still arriving. */
 export function PanelLoading({ label }: { label: string }) {
   return (
-    <div className="grid h-full place-items-center text-[12px] text-slate-400">
+    <div className="grid h-full place-items-center text-muted">
       <span className="flex items-center gap-2">
         <Spinner size={14} /> {label}
       </span>

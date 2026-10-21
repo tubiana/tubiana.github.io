@@ -1,8 +1,68 @@
 @import 'tailwindcss';
 
-@theme {
-  --font-mono:
-    ui-monospace, 'SFMono-Regular', 'Menlo', 'Consolas', 'Liberation Mono', monospace;
+/*
+ * Design tokens. The chrome is deliberately greyscale: the only colour on screen
+ * belongs to the data (domain palette, pLDDT bands, PAE colour map), so nothing in
+ * the interface can be mistaken for a domain. Selection and focus use the text
+ * colour itself. `data-theme` on <html> is set before first paint (index.html).
+ */
+:root {
+  --ground: #14191f;
+  --surface: #1a2028;
+  --raised: #232b34;
+  --line: #2c353f;
+  --line-strong: #3d4854;
+  --fg: #e3e8ed;
+  --muted: #9aa5b1;
+  --faint: #6e7986;
+  --on-fg: #14191f;
+  --hover: rgb(255 255 255 / 0.055);
+  --sel-fill: rgb(227 232 237 / 0.16);
+  --sel-line: rgb(227 232 237 / 0.85);
+  --hover-line: rgb(227 232 237 / 0.55);
+  --danger: #f08a7e;
+  --warn: #e7bd55;
+  --good: #79cf98;
+  --shadow: 0 12px 32px -8px rgb(0 0 0 / 0.55);
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --ground: #eceff2;
+  --surface: #ffffff;
+  --raised: #f4f6f8;
+  --line: #d8dee4;
+  --line-strong: #b7c0ca;
+  --fg: #18202a;
+  --muted: #56616e;
+  --faint: #8792a0;
+  --on-fg: #ffffff;
+  --hover: rgb(24 32 42 / 0.05);
+  --sel-fill: rgb(24 32 42 / 0.1);
+  --sel-line: rgb(24 32 42 / 0.8);
+  --hover-line: rgb(24 32 42 / 0.45);
+  --danger: #b3261e;
+  --warn: #8a5a00;
+  --good: #1f7a44;
+  --shadow: 0 12px 32px -10px rgb(24 32 42 / 0.25);
+  color-scheme: light;
+}
+
+@theme inline {
+  --font-sans: 'Atkinson Hyperlegible Next Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Atkinson Hyperlegible Mono Variable', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --color-ground: var(--ground);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-on-fg: var(--on-fg);
+  --color-danger: var(--danger);
+  --color-warn: var(--warn);
+  --color-good: var(--good);
 }
 
 html,
@@ -13,11 +73,20 @@ body,
 
 body {
   margin: 0;
-  background: #090d14;
-  color: #dbe2ea;
-  font-family:
-    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: var(--ground);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
   overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 1px;
+  border-radius: 4px;
 }
 
 /* ---------------------------------------------------------------- Mol* host   */
@@ -36,7 +105,7 @@ body {
   position: absolute !important;
   inset: 0 !important;
 }
-/* hide Mol* chrome – this app provides its own controls (⚙ molstar turns it back on) */
+/* hide Mol* chrome – this app provides its own controls (Mol* panels turns it back on) */
 .mol-host:not(.advanced) .msp-left-panel-wrapper,
 .mol-host:not(.advanced) .msp-right-panel-wrapper,
 .mol-host:not(.advanced) .msp-bottom-row-wrapper,
@@ -52,120 +121,150 @@ body {
   display: none !important;
 }
 
-/* Advanced mode (⚙ molstar): Mol*'s own panels are un-hidden by the rules above
-   (they are scoped with :not(.advanced)). The plugin root stays absolutely
-   positioned, filling the host, so Mol* splits its own area between the left
-   panel and the viewport. Repositioning the host here instead used to leave it
-   with no height at all — the structure simply vanished when the toggle was on. */
-
-/* Advanced mode (⚙ molstar): only the `right` region is ever shown (see
+/* Advanced mode (Mol* panels): only the `right` region is ever shown (see
    ADV_REGION_STATE in scene.ts) and its dropdown/popover panels are rendered
    inside this same subtree, so the box cannot stay `overflow-hidden` (that
-   clipped the tool menus). z-index stays *below* the header's `z-30` so a
-   popover can never paint over it — it can only extend into the analysis
-   panel beside it, which is harmless. */
+   clipped the tool menus). z-index stays *below* the top bar's `z-30` so a
+   popover can never paint over it. */
 .viewer-advanced {
   position: relative;
   z-index: 20;
   overflow: visible;
 }
-
 .viewer-advanced .mol-host {
-  border-radius: 0.75rem;
+  border-radius: 10px;
 }
-
 .viewer-advanced .msp-popover-root,
 .viewer-advanced .msp-popover-root .msp-panel {
   z-index: 25;
+}
+.mol-host.advanced .msp-right-panel-wrapper {
+  max-width: 100%;
+  overflow: auto;
+}
+
+/* Mol*'s hover readout, in our tokens rather than its light skin */
+.mol-host .msp-highlight-info {
+  background: var(--surface) !important;
+  color: var(--muted) !important;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  box-shadow: var(--shadow);
+}
+.mol-host .msp-highlight-info b,
+.mol-host .msp-highlight-info .msp-highlight-info-additional {
+  color: var(--fg) !important;
 }
 
 /* ---------------------------------------------------------------- scrollbars  */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #334155 transparent;
+  scrollbar-color: var(--line-strong) transparent;
 }
 *::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 *::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: var(--line-strong);
   border-radius: 6px;
-}
-*::-webkit-scrollbar-thumb:hover {
-  background: #475569;
 }
 *::-webkit-scrollbar-track {
   background: transparent;
 }
 
 /* ---------------------------------------------------------------- widgets     */
+/* Three radii, by hierarchy: panels 10px, controls 6px, chips/keys 4px. */
 .btn {
-  @apply inline-flex items-center gap-1.5 rounded-md border border-slate-700/70 bg-slate-800/60 px-2.5 py-1 text-[12px] font-medium text-slate-200 transition-colors;
+  @apply inline-flex h-7 items-center gap-1.5 whitespace-nowrap rounded-md border border-line bg-surface px-2.5 text-[12.5px] text-fg transition-colors;
 }
-.btn:hover:not(:disabled) {
-  @apply border-slate-500 bg-slate-700/70;
+.btn:hover:not(:disabled):not([data-active='true']) {
+  @apply border-line-strong bg-raised;
 }
 .btn[data-active='true'] {
-  @apply border-sky-500/70 bg-sky-500/15 text-sky-200;
+  @apply border-fg bg-fg text-on-fg;
 }
 .btn:disabled {
   @apply cursor-not-allowed opacity-40;
 }
 .btn-ghost {
-  @apply inline-flex items-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-[12px] text-slate-300 transition-colors;
+  @apply inline-flex h-7 items-center gap-1.5 whitespace-nowrap rounded-md px-2 text-[12.5px] text-muted transition-colors;
 }
-.btn-ghost:hover {
-  @apply border-slate-700 bg-slate-800/60;
+.btn-ghost:hover:not(:disabled):not([data-active='true']) {
+  background: var(--hover);
+  @apply text-fg;
 }
-/* accent variant (semi-transparent red) — used by the FASTA sequence search */
-.btn-accent {
-  @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-rose-500/45 bg-rose-600/20 px-2.5 py-1 text-[12px] font-medium text-rose-100 transition-colors;
+.btn-ghost[data-active='true'] {
+  @apply bg-fg text-on-fg;
 }
-.btn-accent:hover:not(:disabled) {
-  @apply border-rose-400/70 bg-rose-600/35;
+.btn-ghost:disabled {
+  @apply cursor-not-allowed opacity-40;
 }
-.chip {
-  @apply inline-flex items-center gap-1 rounded border border-slate-700/70 bg-slate-900/60 px-1.5 py-[1px] text-[11px] text-slate-300;
+.btn-icon {
+  @apply inline-grid h-8 w-8 place-items-center rounded-md text-muted transition-colors;
 }
-.card {
-  @apply rounded-xl border border-slate-800 bg-slate-900/70 shadow-lg shadow-black/20;
+.btn-icon:hover:not(:disabled):not([data-active='true']) {
+  background: var(--hover);
+  @apply text-fg;
 }
-.label {
-  @apply text-[10px] font-semibold uppercase tracking-wider text-slate-400;
+.btn-icon[data-active='true'] {
+  @apply bg-fg text-on-fg;
+}
+.btn-icon:disabled {
+  @apply cursor-not-allowed opacity-35;
+}
+.panel {
+  @apply rounded-[10px] border border-line bg-surface;
+}
+.popover {
+  @apply rounded-lg border border-line bg-surface;
+  box-shadow: var(--shadow);
+}
+.field {
+  @apply h-7 rounded-md border border-line bg-surface px-2 text-[12.5px] text-fg outline-none;
+}
+.field:hover {
+  @apply border-line-strong;
+}
+.field:focus {
+  @apply border-fg;
+}
+.caption {
+  @apply text-[11.5px] text-muted;
 }
 .tabular {
   font-variant-numeric: tabular-nums;
 }
 
-/* keyboard hint */
 kbd {
-  @apply rounded border border-slate-600 bg-slate-800 px-1 py-[1px] font-mono text-[10px] text-slate-300;
+  @apply rounded border border-line bg-raised px-1 font-mono text-[11px] text-fg;
 }
 
 /* range inputs */
 input[type='range'] {
-  height: 4px;
-  background: #1e293b;
+  height: 3px;
+  background: var(--line-strong);
   border-radius: 999px;
   appearance: none;
   outline: none;
 }
 input[type='range']::-webkit-slider-thumb {
   appearance: none;
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: #38bdf8;
+  background: var(--fg);
   cursor: pointer;
-  border: 2px solid #0b1220;
+  border: 2px solid var(--surface);
 }
 input[type='range']::-moz-range-thumb {
-  width: 13px;
-  height: 13px;
-  border: 2px solid #0b1220;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--surface);
   border-radius: 50%;
-  background: #38bdf8;
+  background: var(--fg);
   cursor: pointer;
 }
 
@@ -177,10 +276,11 @@ input[type='range']::-moz-range-thumb {
     transform: rotate(360deg);
   }
 }
-
-/* ⚙ molstar (advanced) mode: only the right region (Structure Tools) is shown;
-   keep it scrollable rather than pushing the viewport around. */
-.mol-host.advanced .msp-right-panel-wrapper {
-  max-width: 100%;
-  overflow: auto;
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation-duration: 3s;
+  }
+  * {
+    scroll-behavior: auto !important;
+  }
 }

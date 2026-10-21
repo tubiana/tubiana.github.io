@@ -564,6 +564,8 @@ export function molUiForced(): boolean {
  */
 export interface SceneOptions {
   advanced?: boolean;
+  /** 0xRRGGBB viewport background */
+  background?: number;
 }
 
 /**
@@ -577,6 +579,34 @@ function ADV_REGION_STATE(on: boolean) {
   return on
     ? { left: 'hidden', top: 'hidden', right: 'full', bottom: 'hidden' }
     : { left: 'hidden', top: 'hidden', right: 'hidden', bottom: 'hidden' };
+}
+
+/**
+ * Viewport background and selection tint, so the 3D panel follows the light/dark
+ * theme. The tint is neutral (white on dark, ink on light): a coloured one shifts
+ * the domain hues and makes a selected domain look like another domain.
+ */
+export function setViewerTheme(plugin: PluginUIContext, background: number, light: boolean) {
+  try {
+    PluginCommands.Canvas3D.SetSettings(plugin, {
+      settings: (props: any) => ({
+        renderer: {
+          ...props.renderer,
+          backgroundColor: Color(background as any),
+          selectColor: Color((light ? 0x18202a : 0xffffff) as any),
+          selectStrength: light ? 0.35 : 0.45,
+          highlightColor: Color(0xffe27a as any),
+        },
+        marking: {
+          ...props.marking,
+          selectEdgeColor: Color((light ? 0x18202a : 0xffffff) as any),
+          highlightEdgeColor: Color((light ? 0x18202a : 0xffffff) as any),
+        },
+      }),
+    });
+  } catch (e) {
+    note('viewer theme', e);
+  }
 }
 
 export async function createScene(container: HTMLElement, opts: SceneOptions = {}): Promise<Scene> {
@@ -639,7 +669,7 @@ export async function createScene(container: HTMLElement, opts: SceneOptions = {
   try {
     PluginCommands.Canvas3D.SetSettings(plugin, {
       settings: (props: any) => ({
-        renderer: { ...props.renderer, backgroundColor: Color(0x0b1017), transparentBackground: false },
+        renderer: { ...props.renderer, backgroundColor: Color((opts.background ?? MOLSTAR_BG) as any), transparentBackground: false },
         camera: { ...props.camera, far: Math.max(props.camera.far, 6000) },
         highlightColor: { ...props.highlightColor, color: Color(0xffe27a), alphaFactor: 0.65 },
       }),

@@ -8,11 +8,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { DomainRange, ModelEntry } from '../lib/types';
-import { GhostBtn, Select, Spinner, Toggle } from './ui';
+import { Icon, Popover, Select, Spinner, Toggle } from './ui';
+import { CANVAS_MONO, canvasPalette } from '../lib/theme';
 import { clamp, lsGet, lsSet } from '../lib/util';
 import { plddtHex } from '../lib/colormap';
 
-const LABEL_W = 168;
+const LABEL_W = 176;
 const RULER_H = 20;
 
 type ColorMode = 'plain' | 'identity' | 'domain' | 'plddt' | 'hydrophobic' | 'turn';
@@ -41,6 +42,7 @@ export function MsaDrawer() {
   const msaRow = useStore((s) => s.msaRow);
   const msaHeight = useStore((s) => s.msaHeight);
   const setMsaHeight = useStore((s) => s.setMsaHeight);
+  const theme = useStore((s) => s.theme);
 
   const [baseW, setBaseW] = useState(6);
   const [rowH, setRowH] = useState(13);
@@ -202,7 +204,8 @@ export function MsaDrawer() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = '#080c12';
+    const pal = canvasPalette();
+    ctx.fillStyle = pal.bg;
     ctx.fillRect(0, 0, viewport.w, viewport.h);
     const seqW = viewport.w - LABEL_W;
     const drawH = viewport.h - RULER_H - pinnedH;
@@ -217,7 +220,7 @@ export function MsaDrawer() {
      * glyph in its column — and shrinking the font until it fits — keeps the pixels and
      * the column the hit test returns in agreement.
      */
-    const fontFor = (px: number) => `${px}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+    const fontFor = (px: number) => `${px}px ${CANVAS_MONO}`;
     let fontPx = Math.max(8, rowH - 3);
     ctx.font = fontFor(fontPx);
     const advance = ctx.measureText('M').width;
@@ -232,8 +235,8 @@ export function MsaDrawer() {
     // numbers* (1-based, the model numbering) — the only way to land on the right column
     // is to convert them through the mapping, never by subtracting one.
     const bands: { s: number; e: number; color: string }[] = [];
-    if (selection) for (const r of selection.ranges) bands.push({ s: r.s, e: r.e, color: 'rgba(56,189,248,.20)' });
-    for (const h of hover) bands.push({ s: h, e: h, color: 'rgba(253,224,71,.16)' });
+    if (selection) for (const r of selection.ranges) bands.push({ s: r.s, e: r.e, color: pal.selFill });
+    for (const h of hover) bands.push({ s: h, e: h, color: pal.selFill });
     const map = residueMap;
     for (const b of bands) {
       // without a mapping the row is assumed gap-free, so residue n sits on column n-1
@@ -249,14 +252,14 @@ export function MsaDrawer() {
 
     // ruler (its own baseline: it is drawn in the strip above the rows)
     ctx.textBaseline = 'top';
-    ctx.fillStyle = 'rgba(8,12,18,.96)';
+    ctx.fillStyle = pal.bg;
     ctx.fillRect(0, 0, viewport.w, RULER_H);
-    ctx.strokeStyle = 'rgba(148,163,184,.25)';
+    ctx.strokeStyle = pal.line;
     ctx.beginPath();
     ctx.moveTo(0, RULER_H - 0.5);
     ctx.lineTo(viewport.w, RULER_H - 0.5);
     ctx.stroke();
-    ctx.font = '10px ui-monospace, monospace';
+    ctx.font = `11px ${CANVAS_MONO}`;
     ctx.textBaseline = 'top';
     ctx.textAlign = 'left';
     const step = Math.max(1, Math.round(58 / baseW)) * (baseW >= 10 ? 5 : 1);
@@ -264,14 +267,14 @@ export function MsaDrawer() {
       const x = LABEL_W + c * baseW - scrollLeft;
       if (x < LABEL_W - 24 || x > viewport.w) continue;
       const res = colToRes(c);
-      ctx.fillStyle = 'rgba(148,163,184,.85)';
-      ctx.fillText(res ? String(res) : `:${c + 1}`, x + baseW / 2, 7);
+      ctx.fillStyle = pal.muted;
+      ctx.fillText(res ? String(res) : `:${c + 1}`, x + baseW / 2, 5);
       ctx.fillRect(x, RULER_H - 3, 1, 3);
     }
     ctx.textAlign = 'left';
     if (queryRow >= 0 && msa.names[queryRow]) {
-      ctx.fillStyle = 'rgba(56,189,248,.9)';
-      ctx.fillText(`▸ ${msa.names[queryRow]}${residueMap ? ` · ${residueMap.length} aa` : ''}`, 4, 7);
+      ctx.fillStyle = pal.muted;
+      ctx.fillText('Residue', 8, 5);
     }
 
     // sequences
@@ -280,15 +283,23 @@ export function MsaDrawer() {
     const nameFor = (r: number, fallback: string): string => {
       const entry = r === queryRow ? model : entryByRow[r];
       const host = entry?.host;
-      return host ? `${fallback} · ${host}` : fallback;
+      // model ids already carry the host (ACCESSION-host-length): don't repeat it
+      return host && !fallback.toLowerCase().includes(host.toLowerCase()) ? `${fallback} · ${host}` : fallback;
     };
     const drawRow = (r: number, row: string | undefined, name: string, y: number, isQuery: boolean) => {
       const base = y + rowH / 2;
       ctx.textAlign = 'left';
-      ctx.fillStyle = isQuery ? '#7dd3fc' : 'rgba(203,213,225,.8)';
+      ctx.fillStyle = isQuery ? pal.fg : pal.muted;
       const nm = name ?? '';
-      ctx.fillText(nm.length > 30 ? nm.slice(0, 29) + '…' : nm, 4, base);
-      ctx.strokeStyle = 'rgba(148,163,184,.12)';
+      // trim to the label column by measured width, so names never run into the residues
+      let label = nm;
+      const room = LABEL_W - 16;
+      if (ctx.measureText(label).width > room) {
+        while (label.length > 1 && ctx.measureText(label + '…').width > room) label = label.slice(0, -1);
+        label += '…';
+      }
+      ctx.fillText(label, 8, base);
+      ctx.strokeStyle = pal.line;
       ctx.beginPath();
       ctx.moveTo(LABEL_W - 0.5, y);
       ctx.lineTo(LABEL_W - 0.5, y + rowH);
@@ -303,7 +314,7 @@ export function MsaDrawer() {
         const x = glyphX(c);
         if (ch === '-' || ch === '.') {
           if (mode !== 'plain') {
-            ctx.fillStyle = 'rgba(100,116,139,.26)';
+            ctx.fillStyle = pal.line;
             ctx.fillText('·', x, base);
           }
           continue;
@@ -311,27 +322,27 @@ export function MsaDrawer() {
         if (isQuery) plddtN++;
         const cons = msa.conservation[c];
         if (onlyConserved > 0 && cons * 100 < onlyConserved) {
-          ctx.fillStyle = 'rgba(100,116,139,.25)';
+          ctx.fillStyle = pal.line;
           ctx.fillText(ch, x, base);
           continue;
         }
         if (mode === 'identity') {
-          const id = cons;
-          ctx.fillStyle = `rgba(${Math.round(228 - 148 * id)},${Math.round(236 - 70 * id)},${Math.round(244)},${0.4 + 0.6 * id})`;
+          // conservation as ink weight: faint letters vary, full-ink letters are conserved
+          ctx.fillStyle = cons > 0.66 ? pal.fg : cons > 0.33 ? pal.muted : pal.faint;
         } else if (mode === 'domain') {
-          ctx.fillStyle = domainAt?.(c)?.color ?? 'rgba(148,163,184,.4)';
+          ctx.fillStyle = domainAt?.(c)?.color ?? pal.faint;
         } else if (mode === 'plddt') {
           // only the pinned/loaded model carries a per-residue pLDDT array; other rows
           // fall back to a neutral colour rather than a made-up value
           if (isQuery && plddt && plddtN >= 1 && plddtN <= plddt.length) ctx.fillStyle = plddtHex(plddt[plddtN - 1]);
-          else ctx.fillStyle = 'rgba(148,163,184,.4)';
+          else ctx.fillStyle = pal.faint;
         } else if (mode === 'hydrophobic') {
-          ctx.fillStyle = HYDROPHOBIC[ch.toUpperCase()] ?? 'rgba(203,213,225,.9)';
+          ctx.fillStyle = HYDROPHOBIC[ch.toUpperCase()] ?? pal.fg;
         } else if (mode === 'turn') {
           const up = ch.toUpperCase();
-          ctx.fillStyle = up === 'P' ? '#f472b6' : up === 'G' ? '#a3e635' : 'rgba(148,163,184,.6)';
+          ctx.fillStyle = up === 'P' ? '#e0489c' : up === 'G' ? '#3fa34d' : pal.faint;
         } else {
-          ctx.fillStyle = isQuery ? '#bae6fd' : 'rgba(203,213,225,.85)';
+          ctx.fillStyle = isQuery ? pal.fg : pal.muted;
         }
         ctx.fillText(ch, x, base);
       }
@@ -341,7 +352,7 @@ export function MsaDrawer() {
       const y = (r - firstRow) * rowH + RULER_H + pinnedH;
       const isQuery = showQuery && r === queryRow;
       if (isQuery) {
-        ctx.fillStyle = 'rgba(56,189,248,.10)';
+        ctx.fillStyle = pal.selFill;
         ctx.fillRect(0, y, viewport.w, rowH);
       }
       drawRow(r, rows[r], nameFor(r, msa.names[r] ?? ''), y, isQuery);
@@ -350,16 +361,16 @@ export function MsaDrawer() {
     // the loaded model, pinned under the ruler
     if (pinnedH > 0 && queryRow >= 0) {
       const y = RULER_H;
-      ctx.fillStyle = 'rgba(56,189,248,.15)';
+      ctx.fillStyle = pal.raised;
       ctx.fillRect(0, y, viewport.w, pinnedH);
-      drawRow(queryRow, rows[queryRow], nameFor(queryRow, `★ ${model?.id ?? msa.names[queryRow] ?? 'model'}`), y, true);
-      ctx.strokeStyle = 'rgba(56,189,248,.5)';
+      drawRow(queryRow, rows[queryRow], nameFor(queryRow, model?.accession || model?.id || msa.names[queryRow] || 'model'), y, true);
+      ctx.strokeStyle = pal.lineStrong;
       ctx.beginPath();
       ctx.moveTo(0, y + pinnedH - 0.5);
       ctx.lineTo(viewport.w, y + pinnedH - 0.5);
       ctx.stroke();
     }
-    ctx.strokeStyle = 'rgba(148,163,184,.35)';
+    ctx.strokeStyle = pal.lineStrong;
     ctx.beginPath();
     ctx.moveTo(LABEL_W + 0.5, 0);
     ctx.lineTo(LABEL_W + 0.5, viewport.h);
@@ -367,7 +378,7 @@ export function MsaDrawer() {
   }, [
     msaOpen, msa, viewport.w, viewport.h, scrollTop, scrollLeft, baseW, rowH, mode,
     showQuery, pinModel, pinnedH, onlyConserved, selection, hover, nRows, nCols, queryRow,
-    residueMap, domainAtCol, domainForRow, entryByRow, colToRes, model, plddt,
+    residueMap, domainAtCol, domainForRow, entryByRow, colToRes, model, plddt, theme,
   ]);
 
   // ------------------------------------------------------- interactions
@@ -402,28 +413,31 @@ export function MsaDrawer() {
     if (hScrollRef.current && Math.abs(ev.deltaX) > 0) hScrollRef.current.scrollLeft += ev.deltaX;
   };
 
+  const summary = msa
+    ? `${msa.names.length.toLocaleString()} sequences, ${msa.columns.toLocaleString()} columns`
+    : statusMsa === 'error'
+      ? 'could not be loaded'
+      : 'loading…';
+
   if (!msaOpen) {
     return (
-      <div className="flex h-[26px] shrink-0 items-center gap-2 border-t border-slate-800 bg-slate-950/80 px-3">
-        <button onClick={() => toggleMsa(true)} className="text-[12px] font-medium text-sky-300 hover:text-sky-200">
-          ▸ MSA
+      <div className="flex h-10 shrink-0 items-center gap-3 border-t border-line bg-surface px-4">
+        <button onClick={() => toggleMsa(true)} className="btn-ghost -ml-2 font-semibold text-fg" aria-expanded={false}>
+          <Icon name="chevronUp" size={15} /> Alignment
         </button>
-        <span className="truncate text-[11px] text-slate-400">
-          Clustal Omega alignment · {msa ? `${msa.names.length} sequences × ${msa.columns} columns` : 'loading…'}
+        <span className="truncate text-[12px] text-muted">{summary}</span>
+        <span className="ml-auto hidden text-[12px] text-muted sm:inline">
+          <kbd>M</kbd> to toggle
         </span>
-        {selection && (
-          <span className="hidden truncate text-[11px] text-slate-500 md:inline">
-            · selection {selection.ranges.map((r) => `${r.s}${r.e !== r.s ? '–' + r.e : ''}`).join(', ')} (
-            {selection.label})
-          </span>
-        )}
-        <span className="ml-auto text-[10.5px] text-slate-600">M</span>
       </div>
     );
   }
 
+  const hoverRes = hoverCol != null ? colToRes(hoverCol) : null;
+  const hoverDomain = hoverCol != null ? domainAtCol?.[hoverCol] : null;
+
   return (
-    <div className="flex shrink-0 flex-col border-t border-slate-800 bg-slate-950/80" style={{ height: msaHeight }}>
+    <div className="flex shrink-0 flex-col border-t border-line bg-surface" style={{ height: msaHeight }}>
       {/* height handle */}
       <div
         onPointerDown={(e) => {
@@ -442,132 +456,121 @@ export function MsaDrawer() {
           window.addEventListener('pointermove', onMove);
           window.addEventListener('pointerup', onUp, { once: true });
         }}
-        title="drag to resize the alignment panel"
-        className={`h-[5px] shrink-0 cursor-row-resize ${resizing ? 'bg-sky-500/50' : 'hover:bg-slate-700'}`}
-      />
-      <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 px-2 py-1">
-        <button onClick={() => toggleMsa(false)} className="text-[12px] font-medium text-sky-300 hover:text-sky-200">
-          ▾ MSA
+        title="Drag to resize"
+        className="group flex h-2 shrink-0 cursor-row-resize items-center justify-center"
+      >
+        <span className={`h-[3px] w-10 rounded-full ${resizing ? 'bg-fg' : 'bg-line group-hover:bg-line-strong'}`} />
+      </div>
+      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-4 pb-2 pt-1">
+        <button onClick={() => toggleMsa(false)} className="btn-ghost -ml-2 font-semibold text-fg" aria-expanded>
+          <Icon name="chevronDown" size={15} /> Alignment
         </button>
-        <span className="text-[11px] text-slate-400">
-          {msa ? `${msa.names.length} sequences · ${msa.columns} columns` : 'alignment unavailable'}
-        </span>
-        <span className="label">width</span>
-        <input
-          type="range" min={3} max={16} step={1} value={baseW}
-          onChange={(e) => setBaseW(Number(e.target.value))} className="w-24" title="pixels per alignment column"
-        />
-        <span className="label">rows</span>
-        <input
-          type="range" min={10} max={20} step={1} value={rowH}
-          onChange={(e) => setRowH(Number(e.target.value))} className="w-20" title="row height (px)"
-        />
+        <span className="text-[12px] text-muted">{summary}</span>
         <Select
           value={mode}
           options={[
-            { value: 'plain', label: 'plain' },
-            { value: 'identity', label: 'identity' },
-            { value: 'domain', label: 'per domain' },
-            { value: 'plddt', label: 'per pLDDT' },
-            { value: 'hydrophobic', label: 'hydrophobic' },
-            { value: 'turn', label: 'Pro / Gly' },
+            { value: 'domain', label: 'Colour by domain' },
+            { value: 'plddt', label: 'Colour by pLDDT' },
+            { value: 'identity', label: 'Colour by conservation' },
+            { value: 'hydrophobic', label: 'Colour by chemistry' },
+            { value: 'turn', label: 'Highlight Pro and Gly' },
+            { value: 'plain', label: 'No colour' },
           ]}
           onChange={(v) => setMode(v as ColorMode)}
-          title="column colouring — per domain uses the CSV annotation ranges (each row its own model's domains); per pLDDT uses the loaded model's confidence, other rows stay neutral"
+          title="Residue colours. By domain uses each sequence’s own annotation; by pLDDT only colours the loaded model."
         />
-        <label className="flex items-center gap-1 text-[11px] text-slate-400" title="fade columns below this conservation">
-          cons ≥
+        <label className="flex items-center gap-2 text-[12px] text-muted">
+          Zoom
           <input
-            type="range" min={0} max={100} step={5} value={onlyConserved}
-            onChange={(e) => setOnlyConserved(Number(e.target.value))} className="w-20"
+            type="range" min={3} max={16} step={1} value={baseW}
+            onChange={(e) => setBaseW(Number(e.target.value))} className="w-20" aria-label="Column width"
           />
-          <span className="tabular w-6 text-slate-300">{onlyConserved}%</span>
         </label>
-        <Toggle checked={showQuery} onChange={setShowQuery} label="highlight query" />
-        <Toggle
-          checked={pinModel}
-          onChange={setPinModel}
-          label="model seq on top"
-          title="pin the loaded model's own sequence in a fixed row under the ruler"
-        />
-        <Toggle
-          checked={clickOpensModel}
-          onChange={(v) => {
-            setClickOpensModel(v);
-            lsSet('orf1.msaClickOpens', v ? '1' : '0');
-          }}
-          label="click row opens model"
-          title="clicking a sequence row loads its model in the 3D / PAE / pLDDT panels"
-        />
+        <Popover
+          up
+          trigger={({ open, toggle }) => (
+            <button type="button" className="btn" data-active={open ? 'true' : 'false'} onClick={toggle} aria-expanded={open}>
+              Options <Icon name="chevronUp" size={14} />
+            </button>
+          )}
+          panelClassName="w-[17rem]"
+        >
+          <div className="flex flex-col gap-3 px-2 py-2">
+            <label className="flex items-center justify-between gap-2 text-[12.5px]">
+              Row height
+              <input
+                type="range" min={10} max={20} step={1} value={rowH}
+                onChange={(e) => setRowH(Number(e.target.value))} className="w-24"
+              />
+            </label>
+            <label className="flex items-center justify-between gap-2 text-[12.5px]" title="Grey out columns below this conservation">
+              <span>
+                Fade below <b>{onlyConserved}%</b> identity
+              </span>
+              <input
+                type="range" min={0} max={100} step={5} value={onlyConserved}
+                onChange={(e) => setOnlyConserved(Number(e.target.value))} className="w-24"
+              />
+            </label>
+            <Toggle checked={pinModel} onChange={setPinModel} label="Keep the loaded model on top" />
+            <Toggle checked={showQuery} onChange={setShowQuery} label="Shade the loaded model’s row" />
+            <Toggle
+              checked={clickOpensModel}
+              onChange={(v) => {
+                setClickOpensModel(v);
+                lsSet('orf1.msaClickOpens', v ? '1' : '0');
+              }}
+              label="Click a row to open its model"
+            />
+          </div>
+        </Popover>
         {residueMap && !residueMap.reliable && (
           <span
-            className="rounded border border-amber-600/50 bg-amber-600/10 px-1.5 py-[1px] text-[10.5px] text-amber-300"
+            className="text-[12px] text-warn"
             title={`${residueMap.mismatches}/${residueMap.compared} residues differ from the structure sequence`}
           >
-            alignment ≠ structure ({residueMap.mismatches}/{residueMap.compared})
+            This alignment row differs from the structure ({residueMap.mismatches} of {residueMap.compared} residues)
           </span>
-        )}
-        {hoverCol != null && (
-          <span className="chip">
-            col <b className="tabular ml-1">{hoverCol + 1}</b>
-            <span className="ml-2 text-slate-400">res</span>{' '}
-            <b className="tabular ml-1">{colToRes(hoverCol) ?? 'gap'}</b>
-            {colToRes(hoverCol) != null && (
-              <>
-                <span className="ml-2 text-slate-400">aa</span>{' '}
-                <b className="tabular ml-1">{msa?.rows[queryRow]?.[hoverCol] ?? '–'}</b>
-              </>
-            )}
-            {domainAtCol?.[hoverCol] && (
-              <>
-                <span className="ml-2 text-slate-400">domain</span>{' '}
-                <b className="ml-1" style={{ color: domainAtCol[hoverCol]!.color }}>
-                  {domainAtCol[hoverCol]!.name}
-                </b>
-              </>
-            )}
-          </span>
-        )}
-        <GhostBtn
-          className="ml-auto"
-          disabled={hoverCol == null || colToRes(hoverCol) == null}
-          title="select the residue of the current model under the cursor"
-          onClick={() => {
-            if (hoverCol == null) return;
-            const res = colToRes(hoverCol);
-            if (res) setSelection({ ranges: [{ s: res, e: res }], label: `MSA column ${hoverCol + 1}`, source: 'msa' });
-          }}
-        >
-          ← select column
-        </GhostBtn>
-        {model && model.domains.length > 0 && (
-          <GhostBtn
-            onClick={() =>
-              setSelection({ ranges: model.domains.map((d) => ({ s: d.start, e: d.end })), label: 'all domains', source: 'domain' })
-            }
-            title="select every annotated domain"
-          >
-            ▦ all domains
-          </GhostBtn>
         )}
         {queryRow < 0 && msa && (
-          <span className="text-[10.5px] text-amber-400" title="no alignment row matched this model id">
-            model not found in the alignment
-          </span>
+          <span className="text-[12px] text-warn">The loaded model has no row in this alignment</span>
         )}
+        <span className="ml-auto truncate text-[12px] text-muted">
+          {hoverCol != null ? (
+            <>
+              Column <b className="text-fg">{hoverCol + 1}</b>
+              {hoverRes != null ? (
+                <>
+                  {' '}
+                  · residue <b className="text-fg">{hoverRes}</b> ({msa?.rows[queryRow]?.[hoverCol] ?? '–'})
+                </>
+              ) : (
+                ' · gap in the loaded model'
+              )}
+              {hoverDomain && (
+                <>
+                  {' '}
+                  in <b style={{ color: hoverDomain.color }}>{hoverDomain.name}</b>
+                </>
+              )}
+            </>
+          ) : (
+            'Click a column to select that residue'
+          )}
+        </span>
       </div>
 
       <div ref={wrapRef} className="relative flex min-h-0 flex-1">
         {statusMsa === 'loading' && !msa && (
-          <div className="absolute inset-0 z-10 grid place-items-center bg-slate-950/70 text-[12px] text-slate-300">
+          <div className="absolute inset-0 z-10 grid place-items-center bg-surface text-muted">
             <span className="flex items-center gap-2">
-              <Spinner size={14} /> downloading & parsing the alignment…
+              <Spinner size={14} /> Downloading the alignment…
             </span>
           </div>
         )}
         {statusMsa === 'error' && (
-          <div className="absolute inset-0 z-10 grid place-items-center px-6 text-center text-[12px] text-rose-300">
-            the alignment could not be loaded
+          <div className="absolute inset-0 z-10 grid place-items-center px-6 text-center text-danger">
+            The alignment could not be loaded. Check the data source in Settings.
           </div>
         )}
         <div
@@ -639,9 +642,7 @@ export function MsaDrawer() {
         >
           <div style={{ width: Math.max(1, totalW), height: 1 }} />
         </div>
-        <span className="shrink-0 pr-2 text-[10px] text-slate-600">
-          click a column → residue in 3D · scroll = pan
-        </span>
+
       </div>
     </div>
   );

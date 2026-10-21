@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { PluginUIContext } from 'molstar/lib/mol-plugin-ui/context.js';
 import type { Structure } from 'molstar/lib/mol-model/structure.js';
 import {
@@ -15,11 +15,37 @@ import {
   captureViewport,
   residuesFromRanges,
   setUiAdvanced,
+  setViewerTheme,
 } from '../mol/scene';
-import { useStore } from '../state/store';
-import { Btn, Spinner } from './ui';
-import { PLDDT_BANDS } from '../lib/colormap';
+import { useStore, type ColorMode, type ReprKind } from '../state/store';
+import { IconBtn, MenuLabel, Popover, Segmented, Spinner, Icon } from './ui';
 import { rafThrottle } from '../lib/util';
+import { viewerBackground } from '../lib/theme';
+
+const COLOR_MODES: { value: ColorMode; label: string; hint: string }[] = [
+  { value: 'domain', label: 'Domains', hint: 'Annotated domain ranges, as on the map above. Grey = unannotated.' },
+  { value: 'plddt', label: 'pLDDT', hint: 'AlphaFold confidence bands, as on the ribbon above.' },
+  { value: 'plddtSmooth', label: 'pLDDT gradient', hint: 'Continuous pLDDT colour ramp' },
+  { value: 'chain', label: 'Chain', hint: 'One colour per chain' },
+  { value: 'uniform', label: 'Plain', hint: 'A single colour' },
+];
+
+/*
+ * The model is full-atom: `Licorice` = Mol* `line` (thin bonds, side chains
+ * included), `Ball & stick` = spheres + cylinders, `Sphere`/`Spacefill` = vdW,
+ * and the two surface types for the molecular surface. Ligands/ions never use
+ * cartoon/surface — `reprTypeFor()` in src/mol/scene.ts keeps them visible.
+ */
+const REPRS: { value: ReprKind; label: string }[] = [
+  { value: 'cartoon', label: 'Cartoon' },
+  { value: 'backbone', label: 'Backbone' },
+  { value: 'licorice', label: 'Licorice' },
+  { value: 'ballStick', label: 'Ball and stick' },
+  { value: 'sphere', label: 'Sphere' },
+  { value: 'spacefill', label: 'Spacefill' },
+  { value: 'surface', label: 'Surface (slow)' },
+  { value: 'molecularSurface', label: 'Molecular surface (slow)' },
+];
 
 export function StructurePanel() {
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -28,7 +54,6 @@ export function StructurePanel() {
   const structRef = useRef<Structure | null>(null);
   const [ready, setReady] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
-  const [loadMs, setLoadMs] = useState<number | null>(null);
   const [spin, setSpinOn] = useState(false);
   const [molErr, setMolErr] = useState<string | null>(null);
   const advanced = useStore((s) => s.molstarAdvanced);
@@ -36,14 +61,18 @@ export function StructurePanel() {
   const model = useStore((s) => s.model);
   const structureText = useStore((s) => s.structureText);
   const plddt = useStore((s) => s.plddt);
-  const colorMode = useStore((s) => s.colorMode);
-  const repr = useStore((s) => s.repr);
   const statusStructure = useStore((s) => s.status.structure);
   const statusPlddt = useStore((s) => s.status.plddt);
   const selection = useStore((s) => s.selection);
   const setSelection = useStore((s) => s.setSelection);
   const setAdvanced = useStore((s) => s.setMolstarAdvanced);
   const highlightVisual = useStore((s) => s.highlightSelectionVisual);
+  const theme = useStore((s) => s.theme);
+  const colorMode = useStore((s) => s.colorMode);
+  const setColorMode = useStore((s) => s.setColorMode);
+  const repr = useStore((s) => s.repr);
+  const setRepr = useStore((s) => s.setRepr);
+  const focusRequest = useStore((s) => s.focusRequest);
 
   // ---------------------------------------------------------------- create
   useEffect(() => {
@@ -53,7 +82,7 @@ export function StructurePanel() {
     if (!host) return;
     (async () => {
       try {
-        const ctx = await createScene(host, { advanced });
+        const ctx = await createScene(host, { advanced, background: viewerBackground(useStore.getState().theme) });
         if (disposed) {
           ctx.dispose();
           return;
@@ -93,7 +122,6 @@ export function StructurePanel() {
     queueRef.current = queueRef.current.then(async () => {
       const plugin = pluginRef.current;
       if (!plugin || req !== reqRef.current) return;
-      const t0 = performance.now();
       try {
         const struct = await showStructure(plugin, structureText, {
           label: model.id,
@@ -104,14 +132,13 @@ export function StructurePanel() {
         });
         if (req !== reqRef.current) return;
         structRef.current = struct ?? null;
-        setLoadMs(performance.now() - t0);
         // the previous structure is gone: re-apply highlight + selection to the new one
         if (struct) {
           const st = useStore.getState();
           const sel = st.selection ? residuesFromRanges(st.selection.ranges) : new Set<number>(st.hover);
           if (sel.size) {
             if (st.highlightSelectionVisual) setSelectionVisual(plugin, struct, sel);
-            highlightResidues(plugin, struct, sel);
+            else highlightResidues(plugin, struct, sel);
           }
         }
       } catch (e) {
@@ -120,6 +147,18 @@ export function StructurePanel() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, structureText, plddt, statusPlddt, modelId]);
+
+  useEffect(() => {
+    if (ready && pluginRef.current) setViewerTheme(pluginRef.current, viewerBackground(theme), theme === 'light');
+  }, [theme, ready]);
+
+  // "Focus in 3D" from the selection line
+  useEffect(() => {
+    if (!focusRequest || !pluginRef.current) return;
+    const st = useStore.getState();
+    const sel = st.selection ? residuesFromRanges(st.selection.ranges) : new Set<number>(st.hover);
+    focusResidues(pluginRef.current, structRef.current, sel);
+  }, [focusRequest]);
 
   // ------------------------------------------------ Mol* UI: simple ↔ full
   useEffect(() => {
@@ -153,8 +192,12 @@ export function StructurePanel() {
       const st = useStore.getState();
       const struct = structRef.current;
       if (!struct) return;
+      // the selection has its own visual (neutral tint + outline); the yellow hover
+      // highlight on top of it would shift the domain colours. Only fall back to
+      // highlighting it when that visual is off.
       const sel = new Set<number>();
-      if (st.selection) for (const r of st.selection.ranges) for (let i = r.s; i <= r.e; i++) sel.add(i);
+      if (st.selection && !st.highlightSelectionVisual)
+        for (const r of st.selection.ranges) for (let i = r.s; i <= r.e; i++) sel.add(i);
       for (const r of st.hover) sel.add(r);
       highlightResidues(plugin, struct, sel);
     });
@@ -220,160 +263,121 @@ export function StructurePanel() {
     else void el.requestFullscreen?.();
   };
 
+  const focusSel = () => {
+    const st = useStore.getState();
+    const sel = st.selection ? residuesFromRanges(st.selection.ranges) : new Set<number>(st.hover);
+    if (pluginRef.current) focusResidues(pluginRef.current, structRef.current, sel);
+  };
+
   return (
     <div
       ref={wrapRef}
-      className={`relative min-h-0 flex-1 overflow-hidden rounded-xl border border-slate-800 bg-[#0b1017]${
-        advanced ? ' viewer-advanced' : ''
-      }`}
+      className={`panel relative min-h-0 flex-1 overflow-hidden${advanced ? ' viewer-advanced' : ''}`}
     >
       <div ref={hostRef} className={`mol-host${advanced ? ' advanced' : ''}`} />
 
       {statusStructure === 'loading' && !ready && (
-        <div className="absolute inset-0 grid place-items-center text-slate-400">
-          <div className="flex items-center gap-2 text-[13px]">
-            <Spinner size={16} /> starting Mol*…
+        <div className="absolute inset-0 grid place-items-center text-muted">
+          <div className="flex items-center gap-2">
+            <Spinner size={16} /> Starting the 3D viewer…
           </div>
         </div>
       )}
       {statusStructure === 'loading' && ready && (
-        <div className="absolute left-3 top-3 flex items-center gap-2 rounded-md border border-slate-700 bg-slate-950/80 px-2 py-1 text-[11px] text-slate-300">
-          <Spinner size={11} /> loading {model?.id}
+        <div className="popover absolute bottom-3 left-3 flex items-center gap-2 px-2.5 py-1.5 text-[12px] text-muted">
+          <Spinner size={11} /> Loading {model?.accession || model?.id}
         </div>
       )}
       {initError && (
-        <div className="absolute inset-x-3 top-3 rounded-lg border border-rose-800 bg-rose-950/70 p-3 text-[12px] text-rose-200">
+        <div className="absolute inset-x-3 top-14 rounded-md border border-danger/40 bg-surface p-3 text-[12.5px] text-danger">
           {initError}
         </div>
       )}
 
-      {/* quick actions */}
-      <div className="pointer-events-none absolute bottom-9 left-2 flex flex-col items-start gap-1">
-        <div className="pointer-events-auto flex flex-col items-start gap-1 rounded-lg border border-slate-800/80 bg-slate-950/70 p-1 backdrop-blur">
-          <Btn onClick={() => pluginRef.current && resetCamera(pluginRef.current)} title="reset camera (R)">
-            ⟲ camera
-          </Btn>
-          <Btn
-            onClick={() => {
-              const st = useStore.getState();
-              const sel = st.selection ? residuesFromRanges(st.selection.ranges) : new Set<number>(st.hover);
-              if (pluginRef.current) focusResidues(pluginRef.current, structRef.current, sel);
-            }}
-            title="frame the current selection (F)"
-            disabled={!selection}
+      {/* appearance: what the colours mean is one click away, on the viewer itself */}
+      {!advanced && (
+        <div className="absolute left-3 top-3 flex items-center gap-1.5">
+          <Segmented
+            label="Colour by"
+            value={colorMode}
+            options={COLOR_MODES.slice(0, 2)}
+            onChange={setColorMode}
+          />
+          <Popover
+            trigger={({ open, toggle }) => (
+              <button type="button" className="btn" data-active={open ? 'true' : 'false'} onClick={toggle} aria-expanded={open}>
+                {REPRS.find((r) => r.value === repr)?.label ?? 'Style'}
+                {colorMode !== 'domain' && colorMode !== 'plddt' && (
+                  <span className="text-muted">, {COLOR_MODES.find((c) => c.value === colorMode)?.label}</span>
+                )}
+                <Icon name="chevronDown" size={14} />
+              </button>
+            )}
+            panelClassName="w-[15rem]"
           >
-            ⛶ focus
-          </Btn>
-          <Btn onClick={toggleSpin} active={spin} title="toggle slow rotation">
-            ↻ spin
-          </Btn>
-          <Btn onClick={() => void doScreenshot()} title="save a PNG of the viewport">
-            ◍ png
-          </Btn>
-          <Btn onClick={toggleFullscreen} title="fullscreen the 3D panel">
-            ⤢ full
-          </Btn>
-          <Btn
-            onClick={() => setAdvanced(!advanced)}
-            active={advanced}
-            title="show Mol*'s own panels (scene graph, styles & properties, settings, sequence view) next to the viewport"
-          >
-            ⚙ molstar
-          </Btn>
-          <Btn onClick={() => setSelection(null)} title="clear the selection (Esc)" disabled={!selection}>
-            ✕ clear
-          </Btn>
-        </div>
-      </div>
-
-      {/* legend */}
-      <Legend />
-
-      {/* footer status */}
-      {molErr && (
-        <div className="absolute inset-x-2 bottom-14 rounded-lg border border-amber-800 bg-amber-950/70 p-2 text-[11px] leading-snug text-amber-200">
-          <span className="font-semibold">3D:</span> {molErr}{' '}
-          <span className="text-amber-400/70">
-            (console: __orf1.mol.diagnostics.errors)
-          </span>
+            {(close) => (
+              <>
+                <MenuLabel>Representation</MenuLabel>
+                {REPRS.map((r) => (
+                  <Choice key={r.value} on={repr === r.value} onClick={() => { setRepr(r.value); close(); }}>
+                    {r.label}
+                  </Choice>
+                ))}
+                <MenuLabel>Colour</MenuLabel>
+                {COLOR_MODES.map((c) => (
+                  <Choice key={c.value} on={colorMode === c.value} title={c.hint} onClick={() => { setColorMode(c.value); close(); }}>
+                    {c.label}
+                  </Choice>
+                ))}
+              </>
+            )}
+          </Popover>
         </div>
       )}
 
-      <div className="pointer-events-none absolute bottom-1.5 left-2 flex items-center gap-2 text-[10.5px] text-slate-500">
-        <span>drag · rotate</span>
-        <span>scroll · zoom</span>
-        <span>right-drag · pan</span>
-        {loadMs != null && <span className="tabular text-slate-600">loaded in {Math.round(loadMs)} ms</span>}
+      <div className="absolute right-2 top-2 flex flex-col gap-0.5 rounded-lg bg-surface/80 p-0.5 backdrop-blur-sm">
+        <IconBtn icon="reset" label="Reset the camera (R)" onClick={() => pluginRef.current && resetCamera(pluginRef.current)} />
+        <IconBtn icon="focus" label="Frame the selection (F)" onClick={focusSel} disabled={!selection} />
+        <IconBtn icon="spin" label={spin ? 'Stop rotating' : 'Rotate slowly'} active={spin} onClick={toggleSpin} />
+        <IconBtn icon="camera" label="Save the view as PNG" onClick={() => void doScreenshot()} />
+        <IconBtn icon="expand" label="Full screen" onClick={toggleFullscreen} />
+        <IconBtn
+          icon="panels"
+          label={advanced ? 'Hide the Mol* panels' : 'Show the Mol* panels (scene, styles, components)'}
+          active={advanced}
+          onClick={() => setAdvanced(!advanced)}
+        />
       </div>
+
+      {molErr && (
+        <div className="absolute inset-x-3 bottom-3 rounded-md border border-warn/40 bg-surface p-2 text-[12px] text-warn">
+          3D view: {molErr}
+        </div>
+      )}
     </div>
   );
 }
 
-/**
- * Colour legend for the viewport.
- *
- * Collapsible and collapsed automatically on entering Fullscreen: the box then
- * covers the page, so a legend pinned to its corner would sit on top of the
- * molecule with nothing to relate to. The toggle brings it back on demand.
- */
-function Legend() {
-  const colorMode = useStore((s) => s.colorMode);
-  const open = useStore((s) => s.legendOpen);
-  const setOpen = useStore((s) => s.setLegendOpen);
-  const model = useStore((s) => s.model);
-  const manifestDomains = useStore((s) => s.manifest?.domains ?? []);
-
-  useEffect(() => {
-    const onFs = () => {
-      if (document.fullscreenElement) useStore.getState().setLegendOpen(false);
-    };
-    document.addEventListener('fullscreenchange', onFs);
-    return () => document.removeEventListener('fullscreenchange', onFs);
-  }, []);
-
-  const plddt = colorMode === 'plddt' || colorMode === 'plddtSmooth';
-  const domain = colorMode === 'domain';
-  if (!plddt && !domain) return null;
-
+function Choice({
+  on,
+  onClick,
+  title,
+  children,
+}: {
+  on: boolean;
+  onClick: () => void;
+  title?: string;
+  children: ReactNode;
+}) {
   return (
-    <div className="absolute bottom-2 right-2 flex flex-col gap-1 rounded-lg border border-slate-800/80 bg-slate-950/70 p-2 backdrop-blur">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="label flex items-center gap-1.5 text-left text-slate-300 hover:text-sky-300"
-        title={open ? 'Collapse the legend' : 'Expand the legend'}
-      >
-        <span className="tabular text-slate-500">{open ? '▾' : '▸'}</span>
-        {plddt ? 'pLDDT (Å-score)' : 'domains'}
-      </button>
-      {open &&
-        (plddt
-          ? PLDDT_BANDS.map((b) => (
-              <div key={b.label} className="flex items-center gap-1.5 text-[10.5px] text-slate-400">
-                <span className="h-2.5 w-4 rounded-sm" style={{ background: b.color }} />
-                {b.label}
-              </div>
-            ))
-          : (
-            <>
-              {(model?.domains ?? []).map((d, i) => {
-                const swatch = manifestDomains.find((x) => x.name === d.name)?.color ?? d.color;
-                return (
-                  <div key={`${d.name}-${i}`} className="flex items-center gap-1.5 text-[10.5px] text-slate-400">
-                    <span className="h-2.5 w-4 rounded-sm" style={{ background: swatch }} />
-                    <span className="w-[68px] truncate">{d.name}</span>
-                    <span className="tabular text-slate-500">
-                      {d.start}–{d.end}
-                    </span>
-                  </div>
-                );
-              })}
-              <div className="flex items-center gap-1.5 text-[10.5px] text-slate-500">
-                <span className="h-2.5 w-4 rounded-sm bg-[#8b93a7]" />
-                unannotated
-              </div>
-            </>
-          ))}
-    </div>
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12.5px] hover:bg-[var(--hover)]"
+    >
+      <span className="w-4 text-fg">{on ? <Icon name="check" size={14} /> : null}</span>
+      {children}
+    </button>
   );
 }

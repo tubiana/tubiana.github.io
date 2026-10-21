@@ -1,9 +1,9 @@
 /**
- * "Search model from sequence": paste a FASTA/plain protein sequence and jump to
- * the closest of the 1178 reference ORF1 models (metadata/ORF1s_1178.fasta on
- * Hugging Face). Matching runs entirely client-side (see lib/fastaSearch.ts).
+ * "Search by sequence": paste a FASTA/plain protein sequence and jump to the
+ * closest of the reference ORF1 models (metadata/ORF1s_1178.fasta on Hugging
+ * Face). Matching runs entirely client-side (see lib/fastaSearch.ts).
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useStore } from '../state/store';
 import { Modal } from './Overlays';
 import { Btn, ErrorBanner, Spinner } from './ui';
@@ -12,8 +12,9 @@ import { cleanQuerySequence } from '../lib/fastaSearch';
 export function SequenceSearchOverlay({ onClose }: { onClose: () => void }) {
   const findModelFromSequence = useStore((s) => s.findModelFromSequence);
   const setModel = useStore((s) => s.setModel);
-  const fastaLibraryStatus = useStore((s) => s.fastaLibraryStatus);
-  const [input, setInput] = useState('');
+  const draft = useStore((s) => s.sequenceDraft);
+  const nModels = useStore((s) => s.manifest?.models.length ?? 0);
+  const [input, setInput] = useState(draft);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [result, setResult] = useState<{ id: string; pctIdentity: number } | null>(null);
@@ -24,13 +25,13 @@ export function SequenceSearchOverlay({ onClose }: { onClose: () => void }) {
     setErr(null);
     setResult(null);
     if (cleaned.length < 20) {
-      setErr('paste at least 20 amino acids (FASTA header optional)');
+      setErr('Paste at least 20 amino acids. A FASTA header is optional.');
       return;
     }
     setBusy(true);
     try {
       const match = await findModelFromSequence(cleaned);
-      if (!match) setErr('no match found');
+      if (!match) setErr('No reference sequence aligned to this one.');
       else setResult(match);
     } catch (e) {
       setErr(String(e instanceof Error ? e.message : e));
@@ -39,6 +40,12 @@ export function SequenceSearchOverlay({ onClose }: { onClose: () => void }) {
     }
   };
 
+  // a sequence pasted into the search box arrives here ready to go
+  useEffect(() => {
+    if (draft && cleanQuerySequence(draft).length >= 20) void run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const openMatch = () => {
     if (!result) return;
     void setModel(result.id);
@@ -46,49 +53,56 @@ export function SequenceSearchOverlay({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <Modal title="Search model from sequence" onClose={onClose}>
-      <p className="mb-2 text-slate-400">
-        Paste a protein sequence (FASTA or plain text) below. It is compared against the{' '}
-        {fastaLibraryStatus === 'loading' ? <Spinner size={11} /> : '1178'} reference ORF1 sequences to find the
-        closest model.
+    <Modal title="Search by sequence" onClose={onClose}>
+      <p className="mb-3 text-muted">
+        Paste a protein sequence, as FASTA or plain text. It is aligned against the {nModels.toLocaleString()} reference ORF1
+        sequences and the closest model is proposed.
       </p>
       <textarea
         value={input}
-        onChange={(e) => setInput(e.target.value)}
+        onChange={(e) => {
+          setInput(e.target.value);
+          setResult(null);
+        }}
         placeholder={'>my_sequence\nMEAHQFIKAPGITTAIEQAALAAANSALANAVVVRPFLSHQ…'}
         spellCheck={false}
         rows={8}
-        className="w-full resize-y rounded-md border border-slate-700 bg-slate-900/85 p-2 font-mono text-[11.5px] text-slate-100 outline-none placeholder:text-slate-500 focus:border-sky-600"
+        autoFocus
+        className="w-full resize-y rounded-md border border-line bg-raised p-2.5 font-mono text-[12px] text-fg outline-none placeholder:text-faint focus:border-fg"
       />
-      <div className="mt-1.5 flex items-center gap-2 text-[11px] text-slate-500">
-        <span>{cleaned.length} aa parsed</span>
-      </div>
+      <div className="mt-1.5 text-[12px] text-muted">{cleaned.length.toLocaleString()} amino acids read</div>
 
       {err && (
-        <div className="mt-2">
+        <div className="mt-3">
           <ErrorBanner message={err} />
         </div>
       )}
 
       {result && (
-        <div className="mt-3 rounded-md border border-sky-800 bg-sky-950/40 px-3 py-2">
-          <div className="text-[12.5px] text-slate-200">
-            closest model: <b className="text-sky-300">{result.id}</b>
+        <div className="mt-3 flex items-center justify-between gap-3 rounded-md border border-line bg-raised px-3 py-2.5">
+          <div>
+            <div className="font-semibold">{result.id}</div>
+            <div className="text-[12px] text-muted">{result.pctIdentity.toFixed(1)}% identity over a global alignment</div>
           </div>
-          <div className="text-[11px] text-slate-400">{result.pctIdentity.toFixed(1)}% identity (global alignment)</div>
+          <Btn active onClick={openMatch}>
+            Open this model
+          </Btn>
         </div>
       )}
 
-      <div className="mt-3 flex justify-end gap-2">
-        <Btn onClick={run} disabled={busy || cleaned.length < 20}>
-          {busy ? <Spinner size={12} /> : 'find closest model'}
-        </Btn>
-        {result && (
-          <Btn className="!bg-sky-600 hover:!bg-sky-500" onClick={openMatch}>
-            open {result.id}
+      {!result && (
+        <div className="mt-4 flex justify-end">
+          <Btn active onClick={run} disabled={busy || cleaned.length < 20}>
+            {busy ? (
+              <>
+                <Spinner size={12} /> Searching…
+              </>
+            ) : (
+              'Find closest model'
+            )}
           </Btn>
-        )}
-      </div>
+        </div>
+      )}
     </Modal>
   );
 }

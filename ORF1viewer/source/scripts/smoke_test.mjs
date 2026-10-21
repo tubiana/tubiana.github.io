@@ -212,9 +212,9 @@ async function main() {
       check('graceful fallback message when WebGL is unavailable', warned > 0, `${warned} notice`);
     }
 
-    // header badges
-    const badgeText = await page.locator('header').first().innerText();
-    check('header shows the model id', badgeText.includes(ready.model.id));
+    // model band: the accession is the page heading
+    const heading = await page.locator('h1').first().innerText();
+    check('model band shows the accession', heading.includes(ready.model.accession || ready.model.id), heading);
 
     // ------------------------------------------------- PAE hover + click
     const paeCanvas = page.locator('canvas[style*="crosshair"]').first();
@@ -276,7 +276,7 @@ async function main() {
     );
 
     // zoom-to-selection
-    await page.getByTitle('zoom into the selected residue span').click();
+    await page.getByRole('button', { name: 'Zoom to the selection' }).click();
     await sleep(400);
     const zoomed = await page.evaluate(() => window.__orf1.getState().paeWindow);
     check(
@@ -284,7 +284,7 @@ async function main() {
       zoomed.x1 - zoomed.x0 < 0.6 && zoomed.x0 > 0,
       `${JSON.stringify(zoomed)}`
     );
-    await page.getByTitle('show the whole matrix').click();
+    await page.getByRole('button', { name: 'Show the whole matrix' }).click();
     await sleep(300);
     const unzomed = await page.evaluate(() => window.__orf1.getState().paeWindow);
     check('“all” restores the full window', unzomed.x0 === 0 && unzomed.x1 === 1);
@@ -304,7 +304,8 @@ async function main() {
           const v = lut[m.index[k]];
           if (v < lim) continue;
           const q = k * 4;
-          const flat = m.rgba[q] === 15 && m.rgba[q + 1] === 21 && m.rgba[q + 2] === 31;
+          // muted cells are transparent, so the theme background shows through
+          const flat = m.rgba[q + 3] === 0;
           checked++;
           if (flat !== expectMuted) bad++;
           if (checked > 4000) break;
@@ -348,7 +349,8 @@ async function main() {
       mutedOn && mutedOn.checked > 20 && mutedOn.bad === 0,
       JSON.stringify(mutedOn)
     );
-    await page.getByText('mute background').click();
+    await page.getByRole('button', { name: 'Display' }).click();
+    await page.getByText('Leave errors above the scale blank').click();
     await sleep(700);
     const mutedOff = await muteProbe(false);
     check(
@@ -356,7 +358,8 @@ async function main() {
       mutedOff && mutedOff.checked > 20 && mutedOff.bad === 0,
       JSON.stringify(mutedOff)
     );
-    await page.getByText('mute background').click();
+    await page.getByText('Leave errors above the scale blank').click();
+    await page.keyboard.press('Escape');
     await sleep(500);
 
     // shareable URL
@@ -385,15 +388,18 @@ async function main() {
     // ---------------------------------------------------------------- tabs
     await page.evaluate(() => window.__orf1.getState().setTab('plddt'));
     await sleep(600);
-    check('pLDDT tab renders', (await page.locator('table').count()) > 0);
-    const domainRows = await page.locator('table tbody tr').count();
+    check('Domains tab renders', (await page.locator('table').count()) > 0);
+    const domainRows = await page.locator('table').first().locator('tbody tr').count();
     check('domain table lists domains', domainRows >= 5, `${domainRows} rows`);
     await page.screenshot({ path: path.join(OUT, '03-plddt.png') });
 
-    await page.evaluate(() => window.__orf1.getState().setTab('accent'));
+    await page.evaluate(() => window.__orf1.getState().setTab('pae'));
+    await sleep(400);
+    await page.getByRole('button', { name: 'More' }).click();
+    await page.getByText('Original AlphaFold figure').click();
     await sleep(1200);
     const imgOk = await page.evaluate(async () => {
-      const img = document.querySelector('img[alt^="accentuated PAE"]');
+      const img = document.querySelector('img[alt^="Accentuated PAE"]');
       if (!img) return { ok: false, why: 'no img' };
       if (img.complete && img.naturalWidth > 0) return { ok: true, w: img.naturalWidth };
       await new Promise((r) => {
@@ -405,7 +411,9 @@ async function main() {
     });
     check('accentuated PAE figure decodes', imgOk.ok, `${imgOk.w}px`);
     await page.screenshot({ path: path.join(OUT, '04-accent.png') });
-    await page.evaluate(() => window.__orf1.getState().setTab('pae'));
+    await page.keyboard.press('Escape');
+    await sleep(200);
+    check('Esc closes the figure dialog', (await page.locator('[role=dialog]').count()) === 0);
 
     // ----------------------------------------------------------------- MSA
     await page.keyboard.press('m');
