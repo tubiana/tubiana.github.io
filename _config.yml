@@ -29,6 +29,9 @@ encoding: utf-8
 # Everything below stays out of Jekyll's way: hand-built mini-apps that
 # already live at these paths and are cited/linked externally — do not
 # rename or move these folders.
+# ORF1viewer, af3_analysis, afbuilderjson, mdstepscalculator and
+# uniprot_to_seq now live in their own repos (tubiana/<name>) and are served
+# as project Pages at the same URLs (https://tubiana.github.io/<name>/).
 exclude:
   - Gemfile
   - Gemfile.lock
@@ -38,10 +41,6 @@ exclude:
   - node_modules
   - "*.gemspec"
 include:
-  - af3_analysis
-  - afbuilderjson
-  - mdstepscalculator
-  - uniprot_to_seq
   - ARdemo
   - af_scores
   - msa_swiss_knife
